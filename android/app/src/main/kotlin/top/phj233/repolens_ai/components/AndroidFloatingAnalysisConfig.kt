@@ -37,6 +37,7 @@ internal fun AndroidFloatingAnalysisConfig(
                 backdrop = backdrop,
                 modifier = Modifier.fillMaxWidth(),
                 surfaceAlpha = 0.72f,
+                selectMenuSamplesPanelContent = true,
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {

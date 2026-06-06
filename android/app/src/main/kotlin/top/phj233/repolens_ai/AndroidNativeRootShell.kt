@@ -9,14 +9,17 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredHeightIn
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -50,12 +53,12 @@ internal fun RepoLensAndroidNativeShell(shellState: AndroidNativeShellState) {
         "light" -> false
         else -> isSystemDark
     }
-    RepoLensAndroidPalette.configure(
+    RepoLensAndroidTokens.configure(
         isDark = isDark,
         backgroundOverride = snapshot.settings.androidLiquidGlassBackground,
         themeColor = snapshot.settings.themeColor,
     )
-    val backgroundColor = RepoLensAndroidPalette.background
+    val backgroundColor = RepoLensAndroidTokens.background
     val backgroundBackdrop = key(backgroundColor) {
         rememberCanvasBackdrop {
             drawRect(backgroundColor)
@@ -70,7 +73,10 @@ internal fun RepoLensAndroidNativeShell(shellState: AndroidNativeShellState) {
     val bottomBarBackdrop = rememberCombinedBackdrop(backgroundBackdrop, contentBackdrop)
     val selectOverlayController = remember { AndroidSelectOverlayController() }
 
-    CompositionLocalProvider(LocalAndroidSelectOverlayController provides selectOverlayController) {
+    CompositionLocalProvider(
+        LocalAndroidSelectOverlayController provides selectOverlayController,
+        LocalAndroidSelectMenuBackdrop provides bottomBarBackdrop,
+    ) {
         Box(
             Modifier
                 .fillMaxSize()
@@ -115,6 +121,16 @@ internal fun RepoLensAndroidNativeShell(shellState: AndroidNativeShellState) {
             }
 
             snapshot.message?.let { message ->
+                Box(
+                    Modifier
+                        .align(Alignment.TopCenter)
+                        .fillMaxWidth()
+                        .windowInsetsTopHeight(WindowInsets.statusBars)
+                        .drawBehind {
+                            drawRect(backgroundColor.copy(alpha = 0.78f))
+                        }
+                        .zIndex(9f),
+                )
                 KyantGlassPanel(
                     backdrop = bottomBarBackdrop,
                     modifier = Modifier
@@ -123,16 +139,16 @@ internal fun RepoLensAndroidNativeShell(shellState: AndroidNativeShellState) {
                         .padding(horizontal = 14.dp, vertical = 10.dp)
                         .fillMaxWidth(0.82f),
                     cornerRadius = 24f,
-                    surfaceAlpha = 0.34f,
+                    surfaceAlpha = if (RepoLensAndroidTokens.isDark) 0.44f else 0.50f,
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         AppText(
                             text = message,
                             style = RepoLensAndroidType.body().copy(
                                 color = if (snapshot.errorMessage != null) {
-                                    RepoLensAndroidPalette.error
+                                    RepoLensAndroidTokens.error
                                 } else {
-                                    RepoLensAndroidPalette.ink
+                                    RepoLensAndroidTokens.ink
                                 },
                             ),
                             modifier = Modifier.weight(1f),
@@ -183,7 +199,7 @@ internal fun RepoLensAndroidNativeShell(shellState: AndroidNativeShellState) {
                 AndroidImagePreviewOverlay(
                     path = imagePath,
                     strings = snapshot.strings,
-                    backdrop = backgroundBackdrop,
+                    backdrop = bottomBarBackdrop,
                     onClose = shellState::closeImagePreview,
                 )
             }
@@ -250,7 +266,7 @@ private fun AndroidSelectOverlayLayer(
                 ),
         )
         KyantGlassSelectMenuPanel(
-            backdrop = backdrop,
+            backdrop = state.menuBackdrop ?: backdrop,
             modifier = Modifier
                 .offset {
                     IntOffset(

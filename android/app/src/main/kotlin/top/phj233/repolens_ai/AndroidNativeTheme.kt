@@ -89,7 +89,7 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 
-internal object RepoLensAndroidPalette {
+internal object RepoLensAndroidTokens {
     var isDark by mutableStateOf(false)
         private set
     var background by mutableStateOf(Color(0xFFFFFFFF))
@@ -106,8 +106,16 @@ internal object RepoLensAndroidPalette {
         private set
     var onAccent by mutableStateOf(Color(0xFFF7FBFF))
         private set
-    var error by mutableStateOf(Color(0xFFB3261E))
+    var danger by mutableStateOf(Color(0xFFB3261E))
         private set
+    var warning by mutableStateOf(Color(0xFFC98512))
+        private set
+    var info by mutableStateOf(Color(0xFF2F6FBC))
+        private set
+    var success by mutableStateOf(Color(0xFF2F7D5F))
+        private set
+    val error: Color
+        get() = danger
 
     fun configure(isDark: Boolean, backgroundOverride: String, themeColor: String) {
         this.isDark = isDark
@@ -123,7 +131,10 @@ internal object RepoLensAndroidPalette {
         accent = configuredAccent ?: if (isDark) Color(0xFF66B7FF) else Color(0xFF0088FF)
         accentSoft = accent.copy(alpha = if (isDark) 0.24f else 0.20f)
         onAccent = if (isDark) Color(0xFF07111C) else Color(0xFFF7FBFF)
-        error = if (isDark) Color(0xFFFFB4AB) else Color(0xFFB3261E)
+        danger = if (isDark) Color(0xFFFFB4AB) else Color(0xFFB3261E)
+        warning = if (isDark) Color(0xFFFFCF77) else Color(0xFFC98512)
+        info = if (isDark) Color(0xFF9FC9FF) else Color(0xFF2F6FBC)
+        success = if (isDark) Color(0xFF90D5A8) else Color(0xFF2F7D5F)
     }
 
     private fun parseColor(value: String): Color? {
@@ -140,37 +151,37 @@ internal object RepoLensAndroidPalette {
 
 internal object RepoLensAndroidType {
     fun pageTitle() = TextStyle(
-        color = RepoLensAndroidPalette.ink,
+        color = RepoLensAndroidTokens.ink,
         fontSize = 25.sp,
         lineHeight = 30.sp,
         fontWeight = FontWeight.SemiBold,
     )
 
     fun headline() = TextStyle(
-        color = RepoLensAndroidPalette.ink,
+        color = RepoLensAndroidTokens.ink,
         fontSize = 21.sp,
         lineHeight = 26.sp,
         fontWeight = FontWeight.SemiBold,
     )
 
     fun title() = TextStyle(
-        color = RepoLensAndroidPalette.ink,
+        color = RepoLensAndroidTokens.ink,
         fontSize = 17.sp,
         lineHeight = 22.sp,
         fontWeight = FontWeight.SemiBold,
     )
 
     fun body() = TextStyle(
-        color = RepoLensAndroidPalette.ink,
+        color = RepoLensAndroidTokens.ink,
         fontSize = 14.sp,
         lineHeight = 20.sp,
         fontWeight = FontWeight.Normal,
     )
 
     fun bodyStrong() = body().copy(fontWeight = FontWeight.SemiBold)
-    fun bodyMuted() = body().copy(color = RepoLensAndroidPalette.muted)
-    fun caption() = body().copy(color = RepoLensAndroidPalette.muted, fontSize = 12.sp, lineHeight = 16.sp)
+    fun bodyMuted() = body().copy(color = RepoLensAndroidTokens.muted)
+    fun caption() = body().copy(color = RepoLensAndroidTokens.muted, fontSize = 12.sp, lineHeight = 16.sp)
     fun button() = body().copy(fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-    fun chip() = caption().copy(color = RepoLensAndroidPalette.accent, fontWeight = FontWeight.SemiBold)
+    fun chip() = caption().copy(color = RepoLensAndroidTokens.accent, fontWeight = FontWeight.SemiBold)
     fun navLabel() = caption().copy(fontSize = 10.sp, lineHeight = 12.sp, fontWeight = FontWeight.SemiBold)
 }

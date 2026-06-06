@@ -28,12 +28,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.kyant.backdrop.Backdrop
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberCombinedBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.blur
 import com.kyant.backdrop.effects.lens
@@ -56,6 +60,7 @@ internal fun KyantGlassSlider(
     modifier: Modifier = Modifier.fillMaxWidth(),
     onValueChange: (Int) -> Unit,
 ) {
+    val sourceBackdrop = LocalAndroidGlassBackdrop.current ?: backdrop
     val safeStep = step.coerceAtLeast(1)
     val safeValue = value.coerceIn(valueRange.first, valueRange.last)
     var liveValue by remember(label) { mutableIntStateOf(safeValue) }
@@ -99,7 +104,7 @@ internal fun KyantGlassSlider(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             AppText(label, RepoLensAndroidType.caption(), modifier = Modifier.weight(1f), maxLines = 1)
-            KyantSliderValuePill(value = displayedValue, backdrop = backdrop)
+            KyantSliderValuePill(value = displayedValue, backdrop = sourceBackdrop)
         }
         BoxWithConstraints(
             modifier = Modifier
@@ -107,21 +112,30 @@ internal fun KyantGlassSlider(
                 .height(54.dp),
         ) {
             val density = LocalDensity.current
-            val thumbSize = 34.dp
-            val thumbSizePx = with(density) { thumbSize.toPx() }
-            val travelPx = (constraints.maxWidth.toFloat() - thumbSizePx).coerceAtLeast(1f)
+            val thumbWidth = 38.dp
+            val thumbHeight = 32.dp
+            val thumbWidthPx = with(density) { thumbWidth.toPx() }
+            val sliderTrackBackdrop = rememberLayerBackdrop()
+            val sliderThumbBackdrop = rememberCombinedBackdrop(sourceBackdrop, sliderTrackBackdrop)
+            val travelPx = (constraints.maxWidth.toFloat() - thumbWidthPx).coerceAtLeast(1f)
             val thumbX = travelPx * progress
-            val trackProgress = ((thumbX + thumbSizePx / 2f) / constraints.maxWidth.toFloat())
+            val thumbShape = Capsule()
+            val solidThumbColor = if (RepoLensAndroidTokens.isDark) {
+                Color(0xFFF3F6FA)
+            } else {
+                Color(0xFFFFFFFF)
+            }
+            val trackProgress = ((thumbX + thumbWidthPx / 2f) / constraints.maxWidth.toFloat())
                 .coerceIn(0f, 1f)
 
             Box(
                 Modifier
                     .fillMaxSize()
-                    .pointerInput(valueRange, safeStep, thumbSizePx) {
+                    .pointerInput(valueRange, safeStep, thumbWidthPx) {
                         awaitPointerSliderGesture(
                             range = valueRange,
                             step = safeStep,
-                            thumbSizePx = thumbSizePx,
+                            thumbSizePx = thumbWidthPx,
                             onPressed = { isPressed ->
                                 pressed = isPressed
                                 dragging = isPressed
@@ -149,17 +163,23 @@ internal fun KyantGlassSlider(
                     },
                 contentAlignment = Alignment.CenterStart,
             ) {
-                KyantSliderTrack(
-                    progress = trackProgress,
-                    pressed = pressed,
-                    backdrop = backdrop,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(18.dp),
-                )
                 Box(
                     Modifier
-                        .size(thumbSize)
+                        .fillMaxWidth()
+                        .height(18.dp)
+                        .align(Alignment.CenterStart)
+                        .layerBackdrop(sliderTrackBackdrop),
+                ) {
+                    KyantSliderTrack(
+                        progress = trackProgress,
+                        pressed = pressed,
+                        backdrop = sourceBackdrop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+                Box(
+                    Modifier
+                        .size(width = thumbWidth, height = thumbHeight)
                         .offset {
                             IntOffset(
                                 x = (thumbX + direction * stretch * 4.dp.toPx()).roundToInt(),
@@ -168,47 +188,58 @@ internal fun KyantGlassSlider(
                         }
                         .align(Alignment.CenterStart)
                         .graphicsLayer {
-                            scaleX = 1f + 0.10f * pressProgress + 0.30f * stretch
-                            scaleY = 1f + 0.10f * pressProgress - 0.10f * stretch
-                            rotationZ = direction * stretch * 3.2f
+                            scaleX = 1f + 0.055f * pressProgress + 0.060f * stretch
+                            scaleY = 1f + 0.018f * pressProgress - 0.010f * stretch
+                            rotationZ = direction * stretch * 1.2f
                         }
                         .drawBackdrop(
-                            backdrop = backdrop,
-                            shape = { Capsule() },
+                            backdrop = sliderThumbBackdrop,
+                            shape = { thumbShape },
                             effects = {
                                 vibrancy()
-                                blur((0.9f + 0.50f * pressProgress + 0.28f * stretch).dp.toPx())
+                                blur((0.18f + 0.14f * pressProgress + 0.08f * stretch).dp.toPx())
                                 lens(
-                                    refractionHeight = (8f + 6f * pressProgress + 6f * stretch).dp.toPx(),
-                                    refractionAmount = (16f + 15f * pressProgress + 16f * stretch).dp.toPx(),
+                                    refractionHeight = (10f + 8f * pressProgress + 7f * stretch).dp.toPx(),
+                                    refractionAmount = (24f + 24f * pressProgress + 18f * stretch).dp.toPx(),
                                     chromaticAberration = pressed || dragging || stretch > 0.05f,
                                 )
                             },
                             highlight = {
-                                Highlight.Default.copy(alpha = 0.42f + 0.34f * pressProgress + 0.18f * stretch)
+                                Highlight.Default.copy(alpha = 0.24f + 0.46f * pressProgress + 0.20f * stretch)
                             },
                             shadow = {
-                                Shadow(alpha = 0.12f + 0.20f * pressProgress + 0.10f * stretch)
+                                Shadow(alpha = 0.025f + 0.060f * pressProgress + 0.035f * stretch)
                             },
                             innerShadow = {
                                 InnerShadow(
-                                    radius = 3f.dp + 5f.dp * pressProgress + 4f.dp * stretch,
-                                    alpha = 0.14f + 0.26f * pressProgress + 0.13f * stretch,
+                                    radius = 2f.dp + 7f.dp * pressProgress + 4f.dp * stretch,
+                                    alpha = 0.07f + 0.28f * pressProgress + 0.13f * stretch,
                                 )
                             },
                             layerBlock = {
-                                scaleX = 1f + 0.16f * pressProgress + 0.22f * stretch
-                                scaleY = 1f + 0.14f * pressProgress - 0.08f * stretch
+                                scaleX = 1f + 0.046f * pressProgress + 0.048f * stretch
+                                scaleY = 1f + 0.010f * pressProgress
                             },
                             onDrawSurface = {
                                 drawRect(
-                                    RepoLensAndroidPalette.panel.copy(
-                                        alpha = 0.025f + 0.045f * pressProgress + 0.024f * stretch,
+                                    solidThumbColor.copy(
+                                        alpha = (0.94f * (1f - pressProgress)).coerceIn(0f, 0.94f),
                                     ),
                                 )
                                 drawRect(
-                                    RepoLensAndroidPalette.accentSoft.copy(
-                                        alpha = 0.018f + 0.026f * pressProgress + 0.026f * stretch,
+                                    RepoLensAndroidTokens.panel.copy(
+                                        alpha = 0.003f + 0.006f * pressProgress + 0.004f * stretch,
+                                    ),
+                                )
+                                drawRect(
+                                    RepoLensAndroidTokens.accentSoft.copy(
+                                        alpha = 0.010f + 0.020f * pressProgress + 0.018f * stretch,
+                                    ),
+                                    blendMode = BlendMode.Hue,
+                                )
+                                drawRect(
+                                    RepoLensAndroidTokens.accent.copy(
+                                        alpha = 0.004f + 0.012f * progress + 0.014f * pressProgress + 0.014f * stretch,
                                     ),
                                     blendMode = BlendMode.Hue,
                                 )
@@ -227,12 +258,13 @@ private fun KyantSliderTrack(
     backdrop: Backdrop,
     modifier: Modifier = Modifier,
 ) {
+    val resolvedBackdrop = LocalAndroidGlassBackdrop.current ?: backdrop
     Box(modifier = modifier) {
         Box(
             Modifier
                 .fillMaxSize()
                 .drawBackdrop(
-                    backdrop = backdrop,
+                    backdrop = resolvedBackdrop,
                     shape = { Capsule() },
                     effects = {
                         vibrancy()
@@ -247,7 +279,8 @@ private fun KyantSliderTrack(
                     shadow = { Shadow(alpha = if (pressed) 0.08f else 0.04f) },
                     innerShadow = { InnerShadow(radius = 3f.dp, alpha = if (pressed) 0.16f else 0.08f) },
                     onDrawSurface = {
-                        drawRect(RepoLensAndroidPalette.panel.copy(alpha = if (pressed) 0.24f else 0.20f))
+                        drawRect(RepoLensAndroidTokens.accentSoft.copy(alpha = if (pressed) 0.12f else 0.08f), blendMode = BlendMode.Hue)
+                        drawRect(RepoLensAndroidTokens.panel.copy(alpha = if (pressed) 0.20f else 0.17f))
                     },
                 ),
         )
@@ -256,7 +289,7 @@ private fun KyantSliderTrack(
                 .fillMaxWidth(progress.coerceIn(0f, 1f))
                 .fillMaxSize()
                 .drawBackdrop(
-                    backdrop = backdrop,
+                    backdrop = resolvedBackdrop,
                     shape = { Capsule() },
                     effects = {
                         vibrancy()
@@ -265,8 +298,8 @@ private fun KyantSliderTrack(
                     },
                     highlight = { Highlight.Default.copy(alpha = 0.20f + 0.08f * progress) },
                     onDrawSurface = {
-                        drawRect(RepoLensAndroidPalette.accent.copy(alpha = 0.08f + 0.11f * progress), blendMode = BlendMode.Hue)
-                        drawRect(RepoLensAndroidPalette.accent.copy(alpha = 0.030f + 0.055f * progress))
+                        drawRect(RepoLensAndroidTokens.accent.copy(alpha = 0.14f + 0.18f * progress), blendMode = BlendMode.Hue)
+                        drawRect(RepoLensAndroidTokens.accent.copy(alpha = 0.055f + 0.085f * progress))
                     },
                 ),
         )
@@ -275,10 +308,11 @@ private fun KyantSliderTrack(
 
 @Composable
 private fun KyantSliderValuePill(value: Int, backdrop: Backdrop) {
+    val resolvedBackdrop = LocalAndroidGlassBackdrop.current ?: backdrop
     Box(
         Modifier
             .drawBackdrop(
-                backdrop = backdrop,
+                backdrop = resolvedBackdrop,
                 shape = { Capsule() },
                 effects = {
                     vibrancy()
@@ -288,8 +322,9 @@ private fun KyantSliderValuePill(value: Int, backdrop: Backdrop) {
                 highlight = { Highlight.Default.copy(alpha = 0.16f) },
                 innerShadow = { InnerShadow(radius = 2f.dp, alpha = 0.08f) },
                 onDrawSurface = {
-                    drawRect(RepoLensAndroidPalette.panel.copy(alpha = 0.22f))
-                    drawRect(RepoLensAndroidPalette.accentSoft.copy(alpha = 0.18f), blendMode = BlendMode.Hue)
+                    drawRect(RepoLensAndroidTokens.panel.copy(alpha = 0.18f))
+                    drawRect(RepoLensAndroidTokens.accentSoft.copy(alpha = 0.26f), blendMode = BlendMode.Hue)
+                    drawRect(RepoLensAndroidTokens.accent.copy(alpha = 0.040f))
                 },
             )
             .padding(horizontal = 10.dp, vertical = 4.dp),

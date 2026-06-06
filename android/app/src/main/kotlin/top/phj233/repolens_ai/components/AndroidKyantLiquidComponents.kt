@@ -196,8 +196,8 @@ internal fun KyantCatalogLiquidBottomTabs(
     modifier: Modifier = Modifier,
     content: @Composable RowScope.() -> Unit,
 ) {
-    val isLightTheme = !RepoLensAndroidPalette.isDark
-    val accentColor = RepoLensAndroidPalette.accent
+    val isLightTheme = !RepoLensAndroidTokens.isDark
+    val accentColor = RepoLensAndroidTokens.accent
     val transparentSurfaceColor =
         if (isLightTheme) Color.Black.copy(alpha = 0.018f)
         else Color.White.copy(alpha = 0.022f)

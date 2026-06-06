@@ -115,13 +115,76 @@ internal class AndroidNativeShellState(
         updateLocalSettings { it.copy(visualStyle = style) }
         invoke("updateVisualStyle", style)
     }
+
+    fun handleSystemBack(): Boolean {
+        if (snapshot.settings.visualStyle != "liquidGlass") {
+            return false
+        }
+        return when {
+            snapshot.previewImagePath != null -> {
+                applyLocalSnapshot(snapshot.copy(previewImagePath = null))
+                closeImagePreview()
+                true
+            }
+            snapshot.projectDetailOpen -> {
+                applyLocalSnapshot(snapshot.copy(projectDetailOpen = false))
+                closeProjectDetail()
+                true
+            }
+            snapshot.settingsProviderDetailOpen -> {
+                applyLocalSnapshot(snapshot.copy(settingsProviderDetailOpen = false))
+                closeSettingsProviderDetail()
+                true
+            }
+            snapshot.settingsAppearanceDetailOpen -> {
+                applyLocalSnapshot(snapshot.copy(settingsAppearanceDetailOpen = false))
+                closeSettingsAppearanceDetail()
+                true
+            }
+            selectedIndex != 0 -> {
+                select(0)
+                true
+            }
+            else -> false
+        }
+    }
+
     fun updateMcpWriteAccess(enabled: Boolean) = invoke("updateMcpWriteAccess", enabled)
     fun addProvider(payload: Map<String, Any?>) = invoke("addProvider", payload)
     fun selectProvider(providerId: String) = invoke("selectProvider", providerId)
     fun deleteProvider(providerId: String) = invoke("deleteProvider", providerId)
     fun refreshSelectedProviderModels() = invoke("refreshSelectedProviderModels")
     fun saveGithubToken(token: String) = invoke("saveGithubToken", token)
-    fun saveProviderApiKey(apiKey: String) = invoke("saveProviderApiKey", apiKey)
+    fun saveProviderApiKey(apiKey: String, apiKeyRef: String? = null) {
+        invoke(
+            "saveProviderApiKey",
+            mapOf(
+                "apiKey" to apiKey,
+                "apiKeyRef" to apiKeyRef,
+            ),
+        )
+    }
+    fun readSelectedProviderApiKey(onLoaded: (String) -> Unit) {
+        channel.invokeMethod(
+            "readSelectedProviderApiKey",
+            null,
+            object : MethodChannel.Result {
+                override fun success(result: Any?) {
+                    runOnMain {
+                        onLoaded(result as? String ?: "")
+                    }
+                }
+
+                override fun error(errorCode: String, errorMessage: String?, errorDetails: Any?) {
+                    runOnMain { onLoaded("") }
+                }
+
+                override fun notImplemented() {
+                    runOnMain { onLoaded("") }
+                }
+            },
+        )
+    }
 
     fun saveProvider(payload: Map<String, Any?>) {
         invoke("updateProvider", payload)
@@ -169,10 +232,15 @@ internal class AndroidNativeShellState(
     private fun updateLocalSettings(transform: (AndroidNativeSettings) -> AndroidNativeSettings) {
         runOnMain {
             val next = snapshot.copy(settings = transform(snapshot.settings))
-            hasReceivedSnapshot = true
-            snapshot = next
-            onSnapshotChanged(next)
+            applyLocalSnapshot(next)
         }
+    }
+
+    private fun applyLocalSnapshot(next: AndroidNativeSnapshot) {
+        hasReceivedSnapshot = true
+        snapshot = next
+        selectedIndex = next.navigationIndex
+        onSnapshotChanged(next)
     }
 
     private fun applySnapshot(value: Any?) {

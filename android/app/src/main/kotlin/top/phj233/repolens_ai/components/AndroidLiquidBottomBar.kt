@@ -120,9 +120,9 @@ private fun RepoLensBottomTabContent(
         text = item.label,
         style = RepoLensAndroidType.navLabel().copy(
             color = if (selected) {
-                RepoLensAndroidPalette.accent
+                RepoLensAndroidTokens.accent
             } else {
-                RepoLensAndroidPalette.muted
+                RepoLensAndroidTokens.muted
             },
         ),
         maxLines = 1,
@@ -135,7 +135,7 @@ private fun RepoLensBottomTabIcon(
     fallbackIndex: Int,
     selected: Boolean,
 ) {
-    val color = if (selected) RepoLensAndroidPalette.accent else RepoLensAndroidPalette.muted
+    val color = if (selected) RepoLensAndroidTokens.accent else RepoLensAndroidTokens.muted
     val icon = item.icon
     if (icon == null) {
         RepoLensFallbackBottomTabGlyph(index = fallbackIndex, color = color)

@@ -28,12 +28,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.kyant.backdrop.Backdrop
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberCombinedBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.blur
 import com.kyant.backdrop.effects.lens
@@ -55,11 +59,12 @@ internal fun KyantGlassToggleRow(
     disabledText: String = "OFF",
     onChanged: (Boolean) -> Unit,
 ) {
+    val resolvedBackdrop = LocalAndroidGlassBackdrop.current ?: backdrop
     val rowShape = rememberKyantShape(20f)
     Row(
         modifier
             .drawBackdrop(
-                backdrop = backdrop,
+                backdrop = resolvedBackdrop,
                 shape = { rowShape },
                 effects = {
                     vibrancy()
@@ -75,9 +80,10 @@ internal fun KyantGlassToggleRow(
                 innerShadow = { InnerShadow(radius = 3f.dp, alpha = if (selected) 0.18f else 0.08f) },
                 onDrawSurface = {
                     if (selected) {
-                        drawRect(RepoLensAndroidPalette.accent.copy(alpha = 0.10f), blendMode = BlendMode.Hue)
+                        drawRect(RepoLensAndroidTokens.accent.copy(alpha = 0.16f), blendMode = BlendMode.Hue)
+                        drawRect(RepoLensAndroidTokens.accentSoft.copy(alpha = 0.10f))
                     }
-                    drawRect(RepoLensAndroidPalette.panel.copy(alpha = if (selected) 0.28f else 0.22f))
+                    drawRect(RepoLensAndroidTokens.panel.copy(alpha = if (selected) 0.24f else 0.20f))
                 },
             )
             .clickable(role = Role.Switch) { onChanged(!selected) }
@@ -93,7 +99,7 @@ internal fun KyantGlassToggleRow(
         Spacer(Modifier.width(10.dp))
         KyantLiquidSwitch(
             selected = selected,
-            backdrop = backdrop,
+            backdrop = resolvedBackdrop,
             onChanged = onChanged,
         )
     }
@@ -106,6 +112,7 @@ internal fun KyantLiquidSwitch(
     modifier: Modifier = Modifier,
     onChanged: (Boolean) -> Unit,
 ) {
+    val sourceBackdrop = LocalAndroidGlassBackdrop.current ?: backdrop
     var dragging by remember { mutableStateOf(false) }
     var pressed by remember { mutableStateOf(false) }
     var dragTensionTarget by remember { mutableStateOf(0f) }
@@ -141,42 +148,35 @@ internal fun KyantLiquidSwitch(
 
     BoxWithConstraints(
         modifier = modifier
-            .width(62.dp)
+            .width(60.dp)
             .height(36.dp),
     ) {
         val density = LocalDensity.current
+        val switchTrackBackdrop = rememberLayerBackdrop()
+        val switchThumbBackdrop = rememberCombinedBackdrop(sourceBackdrop, switchTrackBackdrop)
         val horizontalInsetPx = with(density) { 3.dp.toPx() }
-        val thumbSizePx = with(density) { 30.dp.toPx() }
-        val travelPx = (constraints.maxWidth.toFloat() - thumbSizePx - horizontalInsetPx * 2f)
+        val thumbWidth = 34.dp
+        val thumbHeight = 30.dp
+        val thumbWidthPx = with(density) { thumbWidth.toPx() }
+        val travelPx = (constraints.maxWidth.toFloat() - thumbWidthPx - horizontalInsetPx * 2f)
             .coerceAtLeast(1f)
         val trackShape = Capsule()
+        val pressShape = Capsule()
+        val thumbShape = Capsule()
+        val solidThumbColor = if (RepoLensAndroidTokens.isDark) {
+            Color(0xFFF3F6FA)
+        } else {
+            Color(0xFFFFFFFF)
+        }
+        val inactiveTrackColor = if (RepoLensAndroidTokens.isDark) {
+            Color(0xFF343A42)
+        } else {
+            Color(0xFFDDE2E8)
+        }
 
         Box(
             Modifier
                 .fillMaxSize()
-                .drawBackdrop(
-                    backdrop = backdrop,
-                    shape = { trackShape },
-                    effects = {
-                        vibrancy()
-                        blur(1.5f.dp.toPx())
-                        lens(
-                            refractionHeight = 4f.dp.toPx() + 2f.dp.toPx() * progress,
-                            refractionAmount = 7f.dp.toPx() + 9f.dp.toPx() * progress,
-                            chromaticAberration = selected || dragging,
-                        )
-                    },
-                    highlight = { Highlight.Default.copy(alpha = 0.20f + 0.16f * progress) },
-                    shadow = { Shadow(alpha = 0.04f + 0.07f * progress) },
-                    innerShadow = { InnerShadow(radius = 4f.dp, alpha = 0.10f + 0.14f * progress) },
-                    onDrawSurface = {
-                        if (progress > 0f) {
-                            drawRect(RepoLensAndroidPalette.accent.copy(alpha = 0.10f + 0.18f * progress), blendMode = BlendMode.Hue)
-                            drawRect(RepoLensAndroidPalette.accent.copy(alpha = 0.04f + 0.10f * progress))
-                        }
-                        drawRect(RepoLensAndroidPalette.panel.copy(alpha = 0.26f - 0.07f * progress))
-                    },
-                )
                 .pointerInput(selected) {
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false)
@@ -224,57 +224,155 @@ internal fun KyantLiquidSwitch(
         ) {
             Box(
                 Modifier
-                    .size(30.dp)
+                    .fillMaxSize()
+                    .layerBackdrop(switchTrackBackdrop)
+                    .drawBackdrop(
+                        backdrop = sourceBackdrop,
+                        shape = { trackShape },
+                        effects = {
+                            vibrancy()
+                            blur(1.5f.dp.toPx())
+                            lens(
+                                refractionHeight = 4f.dp.toPx() + 2f.dp.toPx() * progress,
+                                refractionAmount = 7f.dp.toPx() + 9f.dp.toPx() * progress,
+                                chromaticAberration = selected || dragging,
+                            )
+                        },
+                        highlight = { Highlight.Default.copy(alpha = 0.20f + 0.16f * progress) },
+                        shadow = { Shadow(alpha = 0.04f + 0.07f * progress) },
+                        innerShadow = { InnerShadow(radius = 4f.dp, alpha = 0.10f + 0.14f * progress) },
+                        onDrawSurface = {
+                            drawRect(
+                                inactiveTrackColor.copy(
+                                    alpha = (0.50f * (1f - progress) + 0.08f).coerceIn(0f, 0.50f),
+                                ),
+                            )
+                            if (progress > 0f) {
+                                drawRect(RepoLensAndroidTokens.accent.copy(alpha = 0.14f + 0.24f * progress), blendMode = BlendMode.Hue)
+                                drawRect(RepoLensAndroidTokens.accent.copy(alpha = 0.06f + 0.14f * progress))
+                            }
+                            drawRect(RepoLensAndroidTokens.panel.copy(alpha = 0.12f - 0.04f * progress))
+                        },
+                    ),
+            )
+            Box(
+                Modifier
+                    .size(width = 38.dp, height = 34.dp)
+                    .graphicsLayer {
+                        alpha = (0.02f + 0.62f * pressProgress + 0.18f * dragTension)
+                            .coerceIn(0f, 1f)
+                        translationX = horizontalInsetPx + travelPx * progress - 2.dp.toPx()
+                        translationY = 1.dp.toPx()
+                        scaleX = 1f + 0.06f * pressProgress + 0.04f * dragTension
+                        scaleY = 1f + 0.02f * pressProgress - 0.004f * dragTension
+                    }
+                    .drawBackdrop(
+                        backdrop = switchThumbBackdrop,
+                        shape = { pressShape },
+                        effects = {
+                            vibrancy()
+                            blur((0.10f + 0.10f * pressProgress + 0.04f * dragTension).dp.toPx())
+                            lens(
+                                refractionHeight = (10f + 10f * pressProgress + 5f * dragTension).dp.toPx(),
+                                refractionAmount = (24f + 28f * pressProgress + 12f * dragTension).dp.toPx(),
+                                chromaticAberration = pressed || dragging || dragTension > 0.04f,
+                            )
+                        },
+                        highlight = {
+                            Highlight.Default.copy(alpha = 0.16f + 0.36f * pressProgress + 0.14f * dragTension)
+                        },
+                        shadow = {
+                            Shadow(alpha = 0.010f + 0.020f * pressProgress + 0.014f * dragTension)
+                        },
+                        innerShadow = {
+                            InnerShadow(
+                                radius = 2f.dp + 5f.dp * pressProgress + 2f.dp * dragTension,
+                                alpha = 0.035f + 0.18f * pressProgress + 0.08f * dragTension,
+                            )
+                        },
+                        layerBlock = {
+                            scaleX = 1f + 0.05f * pressProgress + 0.035f * dragTension
+                            scaleY = 1f + 0.012f * pressProgress
+                        },
+                        onDrawSurface = {
+                            drawRect(
+                                RepoLensAndroidTokens.panel.copy(
+                                    alpha = 0.002f + 0.003f * pressProgress + 0.002f * dragTension,
+                                ),
+                            )
+                            drawRect(
+                                RepoLensAndroidTokens.accentSoft.copy(
+                                    alpha = 0.008f + 0.018f * pressProgress + 0.012f * dragTension,
+                                ),
+                                blendMode = BlendMode.Hue,
+                            )
+                            drawRect(
+                                RepoLensAndroidTokens.accent.copy(
+                                    alpha = 0.004f + 0.010f * progress + 0.012f * pressProgress + 0.010f * dragTension,
+                                ),
+                                blendMode = BlendMode.Hue,
+                            )
+                        },
+                    ),
+            )
+            Box(
+                Modifier
+                    .size(width = thumbWidth, height = thumbHeight)
                     .graphicsLayer {
                         translationX = horizontalInsetPx + travelPx * progress
                         translationY = 3.dp.toPx()
-                        scaleX = 1f + 0.10f * pressProgress + 0.18f * dragTension
-                        scaleY = 1f + 0.10f * pressProgress - 0.05f * dragTension + 0.02f * progress
+                        scaleX = 1f + 0.045f * pressProgress + 0.04f * dragTension
+                        scaleY = 1f + 0.016f * pressProgress - 0.004f * dragTension + 0.006f * progress
                     }
                     .drawBackdrop(
-                        backdrop = backdrop,
-                        shape = { Capsule() },
+                        backdrop = switchThumbBackdrop,
+                        shape = { thumbShape },
                         effects = {
                             vibrancy()
-                            blur((0.8f + 0.45f * pressProgress + 0.22f * dragTension).dp.toPx())
+                            blur((0.18f + 0.12f * pressProgress + 0.08f * dragTension).dp.toPx())
                             lens(
-                                refractionHeight = (7f + 5f * pressProgress + 4f * dragTension).dp.toPx(),
-                                refractionAmount = (15f + 13f * pressProgress + 12f * dragTension).dp.toPx(),
+                                refractionHeight = (8f + 8f * pressProgress + 5f * dragTension).dp.toPx(),
+                                refractionAmount = (18f + 20f * pressProgress + 14f * dragTension).dp.toPx(),
                                 chromaticAberration = selected || dragging || pressed || dragTension > 0.05f,
                             )
                         },
                         highlight = {
-                            Highlight.Default.copy(alpha = 0.46f + 0.30f * pressProgress + 0.16f * dragTension)
+                            Highlight.Default.copy(alpha = 0.28f + 0.46f * pressProgress + 0.18f * dragTension)
                         },
                         shadow = {
-                            Shadow(alpha = 0.18f + 0.10f * progress + 0.20f * pressProgress + 0.12f * dragTension)
+                            Shadow(alpha = 0.025f + 0.030f * progress + 0.055f * pressProgress + 0.030f * dragTension)
                         },
                         innerShadow = {
                             InnerShadow(
-                                radius = 3f.dp + 5f.dp * pressProgress + 3f.dp * dragTension,
-                                alpha = 0.16f + 0.26f * pressProgress + 0.14f * dragTension,
+                                radius = 2f.dp + 7f.dp * pressProgress + 3f.dp * dragTension,
+                                alpha = 0.07f + 0.28f * pressProgress + 0.10f * dragTension,
                             )
                         },
                         layerBlock = {
-                            scaleX = 1f + 0.18f * pressProgress + 0.22f * dragTension
-                            scaleY = 1f + 0.18f * pressProgress - 0.08f * dragTension
+                            scaleX = 1f + 0.04f * pressProgress + 0.032f * dragTension
+                            scaleY = 1f + 0.010f * pressProgress
                         },
                         onDrawSurface = {
                             drawRect(
-                                RepoLensAndroidPalette.panel.copy(
-                                    alpha = 0.030f + 0.035f * pressProgress + 0.025f * dragTension,
+                                solidThumbColor.copy(
+                                    alpha = (0.94f * (1f - pressProgress)).coerceIn(0f, 0.94f),
                                 ),
                             )
                             drawRect(
-                                RepoLensAndroidPalette.accentSoft.copy(
-                                    alpha = 0.018f + 0.025f * pressProgress + 0.020f * dragTension,
+                                RepoLensAndroidTokens.panel.copy(
+                                    alpha = 0.004f + 0.006f * pressProgress + 0.004f * dragTension,
+                                ),
+                            )
+                            drawRect(
+                                RepoLensAndroidTokens.accentSoft.copy(
+                                    alpha = 0.010f + 0.020f * pressProgress + 0.014f * dragTension,
                                 ),
                                 blendMode = BlendMode.Hue,
                             )
                             if (progress > 0f) {
                                 drawRect(
-                                    RepoLensAndroidPalette.accent.copy(
-                                        alpha = 0.014f + 0.030f * progress + 0.026f * pressProgress + 0.026f * dragTension,
+                                    RepoLensAndroidTokens.accent.copy(
+                                        alpha = 0.006f + 0.012f * progress + 0.014f * pressProgress + 0.012f * dragTension,
                                     ),
                                     blendMode = BlendMode.Hue,
                                 )

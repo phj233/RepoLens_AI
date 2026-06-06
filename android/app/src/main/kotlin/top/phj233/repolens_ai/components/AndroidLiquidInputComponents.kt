@@ -65,15 +65,16 @@ internal fun KyantGlassButton(
     compact: Boolean = false,
     onClick: () -> Unit,
 ) {
+    val resolvedBackdrop = LocalAndroidGlassBackdrop.current ?: backdrop
     KyantCatalogLiquidButton(
         onClick = onClick,
-        backdrop = backdrop,
+        backdrop = resolvedBackdrop,
         modifier = modifier,
-        tint = if (prominent || selected) RepoLensAndroidPalette.accent else Color.Unspecified,
+        tint = if (prominent || selected) RepoLensAndroidTokens.accent else Color.Unspecified,
         surfaceColor = when {
-            prominent -> RepoLensAndroidPalette.accent.copy(alpha = 0.18f)
-            selected -> RepoLensAndroidPalette.panel.copy(alpha = 0.16f)
-            else -> RepoLensAndroidPalette.panel.copy(alpha = 0.20f)
+            prominent -> RepoLensAndroidTokens.accent.copy(alpha = 0.18f)
+            selected -> RepoLensAndroidTokens.panel.copy(alpha = 0.16f)
+            else -> RepoLensAndroidTokens.panel.copy(alpha = 0.20f)
         },
         heightDp = if (compact) 44f else 48f,
         horizontalPaddingDp = if (compact) 10f else 16f,
@@ -81,7 +82,7 @@ internal fun KyantGlassButton(
         AppText(
             text = text,
             style = RepoLensAndroidType.button().copy(
-                color = if (prominent) RepoLensAndroidPalette.onAccent else RepoLensAndroidPalette.ink,
+                color = if (prominent) RepoLensAndroidTokens.onAccent else RepoLensAndroidTokens.ink,
             ),
             maxLines = 1,
         )
@@ -99,21 +100,22 @@ internal fun KyantGlassIconButton(
     compact: Boolean = false,
     onClick: () -> Unit,
 ) {
+    val resolvedBackdrop = LocalAndroidGlassBackdrop.current ?: backdrop
     KyantCatalogLiquidButton(
         onClick = onClick,
-        backdrop = backdrop,
+        backdrop = resolvedBackdrop,
         modifier = modifier,
-        tint = if (prominent || selected) RepoLensAndroidPalette.accent else Color.Unspecified,
+        tint = if (prominent || selected) RepoLensAndroidTokens.accent else Color.Unspecified,
         surfaceColor = when {
-            prominent -> RepoLensAndroidPalette.accent.copy(alpha = 0.18f)
-            selected -> RepoLensAndroidPalette.panel.copy(alpha = 0.16f)
-            else -> RepoLensAndroidPalette.panel.copy(alpha = 0.20f)
+            prominent -> RepoLensAndroidTokens.accent.copy(alpha = 0.18f)
+            selected -> RepoLensAndroidTokens.panel.copy(alpha = 0.16f)
+            else -> RepoLensAndroidTokens.panel.copy(alpha = 0.20f)
         },
         heightDp = if (compact) 44f else 48f,
         horizontalPaddingDp = if (compact) 10f else 16f,
     ) {
         val contentColor =
-            if (prominent) RepoLensAndroidPalette.onAccent else RepoLensAndroidPalette.ink
+            if (prominent) RepoLensAndroidTokens.onAccent else RepoLensAndroidTokens.ink
         Image(
             painter = rememberVectorPainter(icon),
             contentDescription = text,
@@ -136,18 +138,19 @@ internal fun KyantGlassCircleIconButton(
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
+    val resolvedBackdrop = LocalAndroidGlassBackdrop.current ?: backdrop
     KyantCatalogLiquidButton(
         onClick = onClick,
-        backdrop = backdrop,
+        backdrop = resolvedBackdrop,
         modifier = modifier.width(36.dp),
-        surfaceColor = RepoLensAndroidPalette.panel.copy(alpha = 0.16f),
+        surfaceColor = RepoLensAndroidTokens.panel.copy(alpha = 0.16f),
         heightDp = 36f,
         horizontalPaddingDp = 0f,
     ) {
         Image(
             painter = rememberVectorPainter(icon),
             contentDescription = text,
-            colorFilter = ColorFilter.tint(RepoLensAndroidPalette.ink),
+            colorFilter = ColorFilter.tint(RepoLensAndroidTokens.ink),
             modifier = Modifier.size(18.dp),
         )
     }
@@ -176,6 +179,8 @@ internal fun KyantGlassSelect(
     val selectedOption = options.firstOrNull { it.value == selected } ?: options.first()
     val menuMaxHeight = if (options.size > 5) 292.dp else 248.dp
     val overlayController = LocalAndroidSelectOverlayController.current
+    val resolvedBackdrop = LocalAndroidGlassBackdrop.current ?: backdrop
+    val resolvedMenuBackdrop = LocalAndroidSelectMenuBackdrop.current ?: menuBackdrop
     val selectId = remember { Any() }
     var expanded by remember(label, selected, options.size) { mutableStateOf(false) }
     var anchorLeftPx by remember { mutableStateOf(0f) }
@@ -183,6 +188,30 @@ internal fun KyantGlassSelect(
     var anchorWidthPx by remember { mutableIntStateOf(0) }
     val controllerExpanded = overlayController?.state?.id === selectId
     val isExpanded = controllerExpanded || (overlayController == null && expanded)
+    val selectShape = Capsule()
+    val transparentSelectSurfaceColor =
+        if (!RepoLensAndroidTokens.isDark) {
+            Color.Black.copy(alpha = 0.010f)
+        } else {
+            Color.White.copy(alpha = 0.014f)
+        }
+
+    fun toggleMenu() {
+        if (overlayController != null) {
+            overlayController.toggle(
+                id = selectId,
+                options = options,
+                selected = selected,
+                anchorLeftPx = anchorLeftPx,
+                anchorTopPx = anchorTopPx,
+                anchorWidthPx = anchorWidthPx,
+                menuBackdrop = resolvedMenuBackdrop,
+                onSelected = onSelected,
+            )
+        } else {
+            expanded = !expanded
+        }
+    }
 
     Column(
         modifier = modifier.zIndex(if (isExpanded) 30f else 0f),
@@ -200,33 +229,46 @@ internal fun KyantGlassSelect(
                     anchorWidthPx = coordinates.size.width
                 },
         ) {
-            KyantCatalogLiquidButton(
-                onClick = {
-                    if (overlayController != null) {
-                        overlayController.toggle(
-                            id = selectId,
-                            options = options,
-                            selected = selected,
-                            anchorLeftPx = anchorLeftPx,
-                            anchorTopPx = anchorTopPx,
-                            anchorWidthPx = anchorWidthPx,
-                            onSelected = onSelected,
-                        )
-                    } else {
-                        expanded = !expanded
-                    }
-                },
-                backdrop = backdrop,
-                modifier = Modifier.fillMaxWidth(),
-                surfaceColor = RepoLensAndroidPalette.panel.copy(alpha = 0.22f),
-                heightDp = 48f,
-                horizontalPaddingDp = 13f,
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+                    .drawBackdrop(
+                        backdrop = resolvedBackdrop,
+                        shape = { selectShape },
+                        effects = {
+                            vibrancy()
+                            blur(2.2f.dp.toPx())
+                            lens(
+                                refractionHeight = 22f.dp.toPx(),
+                                refractionAmount = 28f.dp.toPx(),
+                                chromaticAberration = true,
+                            )
+                        },
+                        highlight = {
+                            Highlight.Default.copy(alpha = if (isExpanded) 0.12f else 0.052f)
+                        },
+                        shadow = { Shadow(alpha = 0f) },
+                        innerShadow = {
+                            InnerShadow(
+                                radius = if (isExpanded) 2.5f.dp else 1.25f.dp,
+                                alpha = if (isExpanded) 0.04f else 0.012f,
+                            )
+                        },
+                        onDrawSurface = {
+                            drawRect(transparentSelectSurfaceColor)
+                        },
+                    )
+                    .clickable(onClick = ::toggleMenu)
+                    .padding(horizontal = 13.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 selectedOption.icon?.let { icon ->
                     Image(
                         painter = rememberVectorPainter(icon),
                         contentDescription = label,
-                        colorFilter = ColorFilter.tint(RepoLensAndroidPalette.accent),
+                        colorFilter = ColorFilter.tint(RepoLensAndroidTokens.accent),
                         modifier = Modifier.size(19.dp),
                     )
                 }
@@ -239,13 +281,13 @@ internal fun KyantGlassSelect(
                 Image(
                     painter = rememberVectorPainter(Icons.Outlined.KeyboardArrowDown),
                     contentDescription = label,
-                    colorFilter = ColorFilter.tint(RepoLensAndroidPalette.ink),
+                    colorFilter = ColorFilter.tint(RepoLensAndroidTokens.ink),
                     modifier = Modifier.size(20.dp),
                 )
             }
             if (expanded && overlayController == null) {
                 KyantGlassSelectMenuPanel(
-                    backdrop = menuBackdrop,
+                    backdrop = resolvedMenuBackdrop,
                     modifier = Modifier
                         .fillMaxWidth()
                         .requiredHeightIn(max = menuMaxHeight + 14.dp)
@@ -284,25 +326,34 @@ internal fun KyantGlassSelectMenuPanel(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
+    val resolvedBackdrop = backdrop
+    val transparentSurfaceColor =
+        if (!RepoLensAndroidTokens.isDark) {
+            Color.Black.copy(alpha = 0.010f)
+        } else {
+            Color.White.copy(alpha = 0.014f)
+        }
     val shape = rememberKyantShape(24f)
     Box(
         modifier
             .drawBackdrop(
-                backdrop = backdrop,
+                backdrop = resolvedBackdrop,
                 shape = { shape },
                 effects = {
                     vibrancy()
-                    blur(0.75f.dp.toPx())
+                    blur(2.2f.dp.toPx())
                     lens(
-                        refractionHeight = 16f.dp.toPx(),
-                        refractionAmount = 30f.dp.toPx(),
+                        refractionHeight = 26f.dp.toPx(),
+                        refractionAmount = 34f.dp.toPx(),
                         chromaticAberration = true,
                     )
                 },
-                highlight = { Highlight.Default.copy(alpha = 0.38f) },
-                shadow = { Shadow(alpha = 0.07f) },
-                innerShadow = { InnerShadow(radius = 5f.dp, alpha = 0.18f) },
-                onDrawSurface = {},
+                highlight = { Highlight.Default.copy(alpha = 0.058f) },
+                shadow = { Shadow(alpha = 0f) },
+                innerShadow = { InnerShadow(radius = 1.6f.dp, alpha = 0.016f) },
+                onDrawSurface = {
+                    drawRect(transparentSurfaceColor)
+                },
             )
             .padding(7.dp),
     ) {
@@ -325,7 +376,7 @@ internal fun KyantGlassSelectMenuRow(
                 if (selected) {
                     val radius = size.height / 2f
                     drawRoundRect(
-                        color = RepoLensAndroidPalette.accent.copy(alpha = 0.10f),
+                        color = RepoLensAndroidTokens.accent.copy(alpha = 0.10f),
                         cornerRadius = CornerRadius(radius, radius),
                         style = Stroke(width = 1.dp.toPx()),
                     )
@@ -341,7 +392,7 @@ internal fun KyantGlassSelectMenuRow(
                 painter = rememberVectorPainter(leadingIcon),
                 contentDescription = option.label,
                 colorFilter = ColorFilter.tint(
-                    if (selected) RepoLensAndroidPalette.accent else RepoLensAndroidPalette.muted,
+                    if (selected) RepoLensAndroidTokens.accent else RepoLensAndroidTokens.muted,
                 ),
                 modifier = Modifier.size(18.dp),
             )
@@ -352,7 +403,7 @@ internal fun KyantGlassSelectMenuRow(
         AppText(
             text = option.label,
             style = RepoLensAndroidType.button().copy(
-                color = if (selected) RepoLensAndroidPalette.accent else RepoLensAndroidPalette.ink,
+                color = if (selected) RepoLensAndroidTokens.accent else RepoLensAndroidTokens.ink,
             ),
             modifier = Modifier.weight(1f),
         )
@@ -367,67 +418,104 @@ internal fun KyantTextField(
     backdrop: Backdrop,
     modifier: Modifier = Modifier.fillMaxWidth(),
     password: Boolean = false,
+    trailingIcon: ImageVector? = null,
+    trailingContentDescription: String? = null,
+    onTrailingClick: (() -> Unit)? = null,
 ) {
+    val resolvedBackdrop = LocalAndroidGlassBackdrop.current ?: backdrop
+    val shape = rememberKyantShape(18f)
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         AppText(label, RepoLensAndroidType.caption())
         Box(
             Modifier
                 .fillMaxWidth()
                 .height(48.dp)
-                .drawBehind {
-                    val radius = 18.dp.toPx()
-                    drawRoundRect(
-                        color = RepoLensAndroidPalette.panel.copy(alpha = 0.34f),
-                        cornerRadius = CornerRadius(radius, radius),
-                    )
-                    drawRoundRect(
-                        color = Color.White.copy(alpha = 0.72f),
-                        cornerRadius = CornerRadius(radius, radius),
-                        style = Stroke(width = 1.1.dp.toPx()),
-                    )
-                }
+                .drawBackdrop(
+                    backdrop = resolvedBackdrop,
+                    shape = { shape },
+                    effects = {
+                        vibrancy()
+                        blur(1.2f.dp.toPx())
+                        lens(
+                            refractionHeight = 4f.dp.toPx(),
+                            refractionAmount = 8f.dp.toPx(),
+                            chromaticAberration = false,
+                        )
+                    },
+                    highlight = { Highlight.Default.copy(alpha = 0.16f) },
+                    innerShadow = { InnerShadow(radius = 3f.dp, alpha = 0.08f) },
+                    onDrawSurface = {
+                        drawRect(RepoLensAndroidTokens.panel.copy(alpha = 0.26f))
+                    },
+                )
                 .padding(horizontal = 13.dp),
             contentAlignment = Alignment.CenterStart,
         ) {
-            BasicTextField(
-                value = value,
-                onValueChange = onValueChange,
-                singleLine = true,
-                textStyle = RepoLensAndroidType.body(),
-                visualTransformation = if (password) {
-                    PasswordVisualTransformation()
-                } else {
-                    VisualTransformation.None
-                },
-                modifier = Modifier.fillMaxWidth(),
-                decorationBox = { inner ->
-                    if (value.isEmpty()) {
-                        AppText(label, RepoLensAndroidType.bodyMuted(), maxLines = 1)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                BasicTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    singleLine = true,
+                    textStyle = RepoLensAndroidType.body(),
+                    visualTransformation = if (password) {
+                        PasswordVisualTransformation()
+                    } else {
+                        VisualTransformation.None
+                    },
+                    modifier = Modifier.weight(1f),
+                    decorationBox = { inner ->
+                        if (value.isEmpty()) {
+                            AppText(label, RepoLensAndroidType.bodyMuted(), maxLines = 1)
+                        }
+                        inner()
+                    },
+                )
+                if (trailingIcon != null) {
+                    Spacer(Modifier.width(8.dp))
+                    val iconModifier = if (onTrailingClick == null) {
+                        Modifier.size(22.dp)
+                    } else {
+                        Modifier
+                            .size(22.dp)
+                            .clickable { onTrailingClick() }
                     }
-                    inner()
-                },
-            )
+                    Image(
+                        painter = rememberVectorPainter(trailingIcon),
+                        contentDescription = trailingContentDescription,
+                        colorFilter = ColorFilter.tint(RepoLensAndroidTokens.muted),
+                        modifier = iconModifier,
+                    )
+                }
+            }
         }
     }
 }
 
 @Composable
 internal fun KyantChip(text: String, backdrop: Backdrop) {
+    val resolvedBackdrop = LocalAndroidGlassBackdrop.current ?: backdrop
     Box(
         Modifier
-            .drawBehind {
-                val radius = size.height / 2f
-                drawRoundRect(
-                    color = RepoLensAndroidPalette.accent.copy(alpha = 0.12f),
-                    cornerRadius = CornerRadius(radius, radius),
-                )
-                drawRoundRect(
-                    color = Color.White.copy(alpha = 0.70f),
-                    cornerRadius = CornerRadius(radius, radius),
-                    style = Stroke(width = 1.dp.toPx()),
-                )
-                drawRect(RepoLensAndroidPalette.accentSoft, blendMode = BlendMode.Hue)
-            }
+            .drawBackdrop(
+                backdrop = resolvedBackdrop,
+                shape = { Capsule() },
+                effects = {
+                    vibrancy()
+                    blur(0.9f.dp.toPx())
+                    lens(
+                        refractionHeight = 3f.dp.toPx(),
+                        refractionAmount = 7f.dp.toPx(),
+                        chromaticAberration = false,
+                    )
+                },
+                highlight = { Highlight.Default.copy(alpha = 0.14f) },
+                innerShadow = { InnerShadow(radius = 2f.dp, alpha = 0.08f) },
+                onDrawSurface = {
+                    drawRect(RepoLensAndroidTokens.accentSoft, blendMode = BlendMode.Hue)
+                    drawRect(RepoLensAndroidTokens.accent.copy(alpha = 0.08f))
+                    drawRect(RepoLensAndroidTokens.panel.copy(alpha = 0.10f))
+                },
+            )
             .padding(horizontal = 9.dp, vertical = 5.dp),
     ) {
         AppText(text, RepoLensAndroidType.chip(), maxLines = 1)

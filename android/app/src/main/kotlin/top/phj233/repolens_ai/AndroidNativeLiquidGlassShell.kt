@@ -134,7 +134,14 @@ class AndroidNativeLiquidGlassShell(
         scheduleStateRefresh()
     }
 
+    fun handleSystemBack(): Boolean {
+        return shellState.handleSystemBack()
+    }
+
     private fun updateVisibility(snapshot: AndroidNativeSnapshot) {
+        activity.window.configureRepoLensSystemBars(
+            useDarkIcons = snapshot.usesDarkSystemBarIcons(activity),
+        )
         val nativeVisible = snapshot.settings.visualStyle == "liquidGlass"
         composeView.visibility = if (nativeVisible) View.VISIBLE else View.GONE
         if (nativeVisible) {

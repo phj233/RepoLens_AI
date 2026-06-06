@@ -26,6 +26,8 @@ import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -65,6 +67,7 @@ internal fun AndroidDashboardPage(shellState: AndroidNativeShellState, backdrop:
         },
     )
     MetricGrid(snapshot, backdrop)
+    AndroidTrendPanel(snapshot, backdrop)
     AndroidFilterPanel(shellState, backdrop)
     ProjectListPanel(shellState, backdrop, limit = 8)
 }
@@ -155,6 +158,7 @@ internal fun AndroidProjectDetailPage(shellState: AndroidNativeShellState, backd
         },
     )
     ProjectDetailPanel(shellState, backdrop)
+    ProjectTopicsPanel(snapshot, backdrop)
 }
 
 @Composable
@@ -187,11 +191,20 @@ internal fun AndroidAnalysisPage(shellState: AndroidNativeShellState, backdrop: 
                     AppText(
                         text = analysis.score.toInt().toString(),
                         style = RepoLensAndroidType.headline().copy(
-                            color = RepoLensAndroidPalette.accent,
+                            color = RepoLensAndroidTokens.accent,
                         ),
                     )
                 }
                 AppText(analysis.summary, RepoLensAndroidType.bodyMuted())
+                if (analysis.modelId.isNotBlank()) {
+                    DetailLine(snapshot.strings.model, analysis.modelId)
+                }
+                if (analysis.licenseFinding.isNotBlank()) {
+                    DetailLine(snapshot.strings.licenseFinding, analysis.licenseFinding)
+                }
+                if (analysis.maintenanceActivity.isNotBlank()) {
+                    DetailLine(snapshot.strings.maintenanceActivity, analysis.maintenanceActivity)
+                }
                 if (analysis.businessFit.isNotBlank()) {
                     DetailLine(snapshot.strings.businessFit, analysis.businessFit)
                 }
@@ -633,6 +646,71 @@ internal fun MetricPill(label: String, value: String, backdrop: Backdrop, modifi
 }
 
 @Composable
+internal fun AndroidTrendPanel(snapshot: AndroidNativeSnapshot, backdrop: Backdrop) {
+    val trends = snapshot.trendSnapshots.take(6)
+    val maxStars = trends.maxOfOrNull { it.totalStars }?.coerceAtLeast(1) ?: 1
+    KyantGlassPanel(backdrop = backdrop) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            AppText(snapshot.strings.languageHeat, RepoLensAndroidType.title())
+            if (trends.isEmpty()) {
+                AppText(snapshot.strings.noTrendData, RepoLensAndroidType.bodyMuted())
+            } else {
+                trends.forEach { trend ->
+                    val fraction = (trend.totalStars.toFloat() / maxStars.toFloat()).coerceIn(0.05f, 1f)
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            AppText(
+                                text = trend.label.ifBlank { "Unknown" },
+                                style = RepoLensAndroidType.bodyStrong(),
+                                modifier = Modifier.weight(1f),
+                                maxLines = 1,
+                            )
+                            AppText(
+                                text = "${trend.totalStars.compactString()} · ${trend.projectCount}",
+                                style = RepoLensAndroidType.caption(),
+                                maxLines = 1,
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(10.dp)
+                                .drawBehind {
+                                    val radius = 10.dp.toPx()
+                                    drawRoundRect(
+                                        color = RepoLensAndroidTokens.panel.copy(alpha = 0.34f),
+                                        cornerRadius = CornerRadius(radius, radius),
+                                    )
+                                },
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth(fraction)
+                                    .height(10.dp)
+                                    .drawBehind {
+                                        val radius = 10.dp.toPx()
+                                        drawRoundRect(
+                                            color = RepoLensAndroidTokens.accent.copy(alpha = 0.72f),
+                                            cornerRadius = CornerRadius(radius, radius),
+                                        )
+                                    },
+                            )
+                        }
+                        if (trend.averageScore > 0) {
+                            AppText(
+                                text = "${snapshot.strings.averageScore} ${String.format("%.1f", trend.averageScore)}",
+                                style = RepoLensAndroidType.caption(),
+                                maxLines = 1,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 internal fun AndroidFilterPanel(shellState: AndroidNativeShellState, backdrop: Backdrop) {
     val snapshot = shellState.snapshot
     var keyword by remember { mutableStateOf(snapshot.filters.keyword) }
@@ -800,9 +878,9 @@ internal fun ProjectRow(
                 val radius = 18.dp.toPx()
                 drawRoundRect(
                     color = if (selected) {
-                        RepoLensAndroidPalette.accent.copy(alpha = 0.16f)
+                        RepoLensAndroidTokens.accent.copy(alpha = 0.16f)
                     } else {
-                        RepoLensAndroidPalette.panel.copy(alpha = 0.32f)
+                        RepoLensAndroidTokens.panel.copy(alpha = 0.32f)
                     },
                     cornerRadius = CornerRadius(radius, radius),
                 )
@@ -813,7 +891,7 @@ internal fun ProjectRow(
                 )
                 if (selected) {
                     drawRoundRect(
-                        color = RepoLensAndroidPalette.accent.copy(alpha = 0.18f),
+                        color = RepoLensAndroidTokens.accent.copy(alpha = 0.18f),
                         cornerRadius = CornerRadius(radius, radius),
                         style = Stroke(width = 1.35.dp.toPx()),
                     )
@@ -827,7 +905,7 @@ internal fun ProjectRow(
                 AppText(
                     text = if (project.isFavorite) "★ ${project.fullName}" else project.fullName,
                     style = RepoLensAndroidType.bodyStrong().copy(
-                        color = if (selected) RepoLensAndroidPalette.accent else RepoLensAndroidPalette.ink,
+                        color = if (selected) RepoLensAndroidTokens.accent else RepoLensAndroidTokens.ink,
                     ),
                     modifier = Modifier.weight(1f),
                     maxLines = 1,
@@ -849,6 +927,7 @@ internal fun ProjectRow(
 internal fun ProjectDetailPanel(shellState: AndroidNativeShellState, backdrop: Backdrop) {
     val snapshot = shellState.snapshot
     val project = snapshot.selectedProject
+    val analysis = snapshot.selectedAnalysis
     KyantGlassPanel(backdrop = backdrop) {
         if (project == null) {
             AppText(snapshot.strings.noProjectSelected, RepoLensAndroidType.bodyMuted())
@@ -869,16 +948,34 @@ internal fun ProjectDetailPanel(shellState: AndroidNativeShellState, backdrop: B
                 DetailLine("License", project.license)
                 DetailLine("Stars", project.stars.toString())
                 DetailLine("Forks", project.forks.toString())
+                DetailLine(snapshot.strings.openIssues, project.openIssues.toString())
                 DetailLine(snapshot.strings.pushed, project.pushedAtDisplay)
-                if (project.topics.isNotEmpty()) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        project.topics.take(3).forEach { topic ->
-                            KyantChip(topic, backdrop)
+                if (analysis == null) {
+                    AppText(snapshot.strings.noAnalysis, RepoLensAndroidType.caption())
+                } else {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            AppText(analysis.category, RepoLensAndroidType.bodyStrong(), maxLines = 1)
+                            AppText(analysis.summary, RepoLensAndroidType.bodyMuted(), maxLines = 3)
                         }
+                        Spacer(Modifier.width(10.dp))
+                        KyantChip(analysis.score.toInt().toString(), backdrop)
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+internal fun ProjectTopicsPanel(snapshot: AndroidNativeSnapshot, backdrop: Backdrop) {
+    val project = snapshot.selectedProject ?: return
+    val topics = project.topics.take(16).ifEmpty { listOf(project.language.ifBlank { "Unknown" }) }
+    KyantGlassPanel(backdrop = backdrop) {
+        TextSection(snapshot.strings.topics, topics)
     }
 }
 
@@ -897,6 +994,7 @@ internal fun AndroidProviderPanel(shellState: AndroidNativeShellState, backdrop:
     var structuredOutput by remember { mutableStateOf(settings.supportsStructuredOutput) }
     var toolCalling by remember { mutableStateOf(settings.supportsToolCalling) }
     var providerKey by remember { mutableStateOf("") }
+    var providerKeyVisible by remember { mutableStateOf(true) }
 
     LaunchedEffect(settings) {
         name = settings.providerName
@@ -908,7 +1006,17 @@ internal fun AndroidProviderPanel(shellState: AndroidNativeShellState, backdrop:
         maxOutputTokens = settings.maxOutputTokens.toString()
         structuredOutput = settings.supportsStructuredOutput
         toolCalling = settings.supportsToolCalling
+    }
+
+    LaunchedEffect(settings.selectedProviderId, settings.providerRaw["apiKeyRef"]) {
+        val providerId = settings.selectedProviderId
+        providerKeyVisible = true
         providerKey = ""
+        shellState.readSelectedProviderApiKey { apiKey ->
+            if (shellState.snapshot.settings.selectedProviderId == providerId) {
+                providerKey = apiKey
+            }
+        }
     }
 
     KyantGlassPanel(backdrop = backdrop) {
@@ -946,7 +1054,14 @@ internal fun AndroidProviderPanel(shellState: AndroidNativeShellState, backdrop:
                 onValueChange = { providerKey = it },
                 label = snapshot.strings.selectedProviderApiKey,
                 backdrop = backdrop,
-                password = true,
+                password = !providerKeyVisible,
+                trailingIcon = if (providerKeyVisible) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
+                trailingContentDescription = if (providerKeyVisible) {
+                    snapshot.strings.hideSecret
+                } else {
+                    snapshot.strings.showSecret
+                },
+                onTrailingClick = { providerKeyVisible = !providerKeyVisible },
             )
             if (settings.availableModels.isNotEmpty()) {
                 KyantGlassSelect(
@@ -1050,10 +1165,12 @@ internal fun AndroidProviderPanel(shellState: AndroidNativeShellState, backdrop:
                     payload["supportsStructuredOutput"] = structuredOutput
                     payload["supportsToolCalling"] = toolCalling
                     payload["availableModels"] = availableModels.map { it.toMap() }
+                    if (providerKey.isNotBlank()) {
+                        payload["apiKey"] = providerKey.trim()
+                    }
                     shellState.saveProvider(payload)
                     if (providerKey.isNotBlank()) {
-                        shellState.saveProviderApiKey(providerKey.trim())
-                        providerKey = ""
+                        providerKeyVisible = true
                     }
                 },
             )
@@ -1118,6 +1235,7 @@ internal fun AndroidProviderPanel(shellState: AndroidNativeShellState, backdrop:
 internal fun AndroidCredentialsPanel(shellState: AndroidNativeShellState, backdrop: Backdrop) {
     val strings = shellState.snapshot.strings
     var githubToken by remember { mutableStateOf("") }
+    var githubTokenVisible by remember { mutableStateOf(true) }
     KyantGlassPanel(backdrop = backdrop) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             AppText("GitHub Token", RepoLensAndroidType.title())
@@ -1127,7 +1245,10 @@ internal fun AndroidCredentialsPanel(shellState: AndroidNativeShellState, backdr
                 onValueChange = { githubToken = it },
                 label = "GitHub Token",
                 backdrop = backdrop,
-                password = true,
+                password = !githubTokenVisible,
+                trailingIcon = if (githubTokenVisible) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
+                trailingContentDescription = if (githubTokenVisible) strings.hideSecret else strings.showSecret,
+                onTrailingClick = { githubTokenVisible = !githubTokenVisible },
             )
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 KyantGlassButton(
@@ -1137,6 +1258,7 @@ internal fun AndroidCredentialsPanel(shellState: AndroidNativeShellState, backdr
                     onClick = {
                         shellState.saveGithubToken(githubToken)
                         githubToken = ""
+                        githubTokenVisible = true
                     },
                 )
             }

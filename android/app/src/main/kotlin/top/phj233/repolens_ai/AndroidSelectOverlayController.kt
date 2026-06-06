@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
+import com.kyant.backdrop.Backdrop
 import top.phj233.repolens_ai.components.KyantGlassSelectOption
 
 internal data class AndroidSelectOverlayState(
@@ -13,6 +14,7 @@ internal data class AndroidSelectOverlayState(
     val anchorLeftPx: Float,
     val anchorTopPx: Float,
     val anchorWidthPx: Int,
+    val menuBackdrop: Backdrop?,
     val onSelected: (String) -> Unit,
 )
 
@@ -27,6 +29,7 @@ internal class AndroidSelectOverlayController {
         anchorLeftPx: Float,
         anchorTopPx: Float,
         anchorWidthPx: Int,
+        menuBackdrop: Backdrop?,
         onSelected: (String) -> Unit,
     ) {
         state = if (state?.id === id) {
@@ -39,6 +42,7 @@ internal class AndroidSelectOverlayController {
                 anchorLeftPx = anchorLeftPx,
                 anchorTopPx = anchorTopPx,
                 anchorWidthPx = anchorWidthPx,
+                menuBackdrop = menuBackdrop,
                 onSelected = onSelected,
             )
         }

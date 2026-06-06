@@ -6,7 +6,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.view.View
-import android.view.Window
+import androidx.activity.OnBackPressedCallback
 import androidx.core.content.FileProvider
 import androidx.fragment.app.FragmentActivity
 import io.flutter.embedding.android.FlutterFragmentActivity
@@ -16,11 +16,24 @@ import java.io.File
 
 class MainActivity : FlutterFragmentActivity() {
     private var nativeShell: AndroidNativeLiquidGlassShell? = null
+    private val nativeBackCallback = object : OnBackPressedCallback(true) {
+        override fun handleOnBackPressed() {
+            if (nativeShell?.handleSystemBack() == true) {
+                return
+            }
+            isEnabled = false
+            onBackPressedDispatcher.onBackPressed()
+            isEnabled = true
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        configureEdgeToEdge(window)
+        window.configureRepoLensSystemBars(
+            useDarkIcons = AndroidNativeSnapshot.empty.usesDarkSystemBarIcons(this),
+        )
         window.decorView.attachAndroidXViewTreeOwners(this)
+        onBackPressedDispatcher.addCallback(this, nativeBackCallback)
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -101,19 +114,6 @@ class MainActivity : FlutterFragmentActivity() {
         return runCatching {
             Class.forName("com.kyant.backdrop.backdrops.LayerBackdropKt")
         }.isSuccess
-    }
-
-    private fun configureEdgeToEdge(window: Window) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            window.statusBarColor = android.graphics.Color.TRANSPARENT
-            window.navigationBarColor = android.graphics.Color.TRANSPARENT
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            window.decorView.systemUiVisibility =
-                android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
-                    android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
-                    android.view.View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-        }
     }
 
     private fun mimeTypeFor(fileName: String): String {

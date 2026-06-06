@@ -24,6 +24,7 @@ internal data class AndroidNativeSnapshot(
     val projects: List<AndroidNativeProject> = emptyList(),
     val analyses: List<AndroidNativeAnalysis> = emptyList(),
     val exports: List<AndroidNativeExport> = emptyList(),
+    val trendSnapshots: List<AndroidNativeTrendSnapshot> = emptyList(),
 ) {
     val strings: AndroidNativeStrings = AndroidNativeStrings.forLanguage(settings.language)
     val selectedProject: AndroidNativeProject?
@@ -59,6 +60,7 @@ internal data class AndroidNativeSnapshot(
                 projects = map["projects"].asMapList().map(AndroidNativeProject::from),
                 analyses = map["analyses"].asMapList().map(AndroidNativeAnalysis::from),
                 exports = map["exports"].asMapList().map(AndroidNativeExport::from),
+                trendSnapshots = map["trendSnapshots"].asMapList().map(AndroidNativeTrendSnapshot::from),
             )
         }
     }
@@ -184,6 +186,24 @@ internal data class AndroidNativeProvider(
     }
 }
 
+internal data class AndroidNativeTrendSnapshot(
+    val label: String,
+    val projectCount: Int,
+    val totalStars: Int,
+    val averageScore: Double,
+) {
+    companion object {
+        fun from(map: Map<String, Any?>): AndroidNativeTrendSnapshot {
+            return AndroidNativeTrendSnapshot(
+                label = map["label"] as? String ?: "",
+                projectCount = map["projectCount"].intValue(),
+                totalStars = map["totalStars"].intValue(),
+                averageScore = map["averageScore"].doubleValue(),
+            )
+        }
+    }
+}
+
 internal data class AndroidNativeProject(
     val fullName: String,
     val htmlUrl: String,
@@ -191,6 +211,7 @@ internal data class AndroidNativeProject(
     val language: String,
     val stars: Int,
     val forks: Int,
+    val openIssues: Int,
     val topics: List<String>,
     val license: String,
     val pushedAtDisplay: String,
@@ -205,6 +226,7 @@ internal data class AndroidNativeProject(
                 language = map["language"] as? String ?: "Unknown",
                 stars = map["stars"].intValue(),
                 forks = map["forks"].intValue(),
+                openIssues = map["openIssues"].intValue(),
                 topics = map["topics"].stringList(),
                 license = map["license"] as? String ?: "Unknown",
                 pushedAtDisplay = (map["pushedAt"] as? String)?.take(10) ?: "",
@@ -222,6 +244,8 @@ internal data class AndroidNativeAnalysis(
     val techStack: List<String>,
     val risks: List<String>,
     val score: Double,
+    val licenseFinding: String,
+    val maintenanceActivity: String,
     val dimensions: List<AndroidNativeAnalysisDimension>,
     val architectureNotes: List<String>,
     val qualitySignals: List<String>,
@@ -229,6 +253,7 @@ internal data class AndroidNativeAnalysis(
     val businessFit: String,
     val recommendation: String,
     val nextSteps: List<String>,
+    val modelId: String,
     val companyApiSuggestions: List<AndroidNativeApiSuggestion>,
 ) {
     companion object {
@@ -241,6 +266,8 @@ internal data class AndroidNativeAnalysis(
                 techStack = map["techStack"].stringList(),
                 risks = map["risks"].stringList(),
                 score = map["score"].doubleValue(),
+                licenseFinding = map["licenseFinding"] as? String ?: "",
+                maintenanceActivity = map["maintenanceActivity"] as? String ?: "",
                 dimensions = map["dimensions"]
                     .asMapList()
                     .map(AndroidNativeAnalysisDimension::from),
@@ -250,6 +277,7 @@ internal data class AndroidNativeAnalysis(
                 businessFit = map["businessFit"] as? String ?: "",
                 recommendation = map["recommendation"] as? String ?: "",
                 nextSteps = map["nextSteps"].stringList(),
+                modelId = map["modelId"] as? String ?: "",
                 companyApiSuggestions = map["companyApiSuggestions"]
                     .asMapList()
                     .map(AndroidNativeApiSuggestion::from),
@@ -319,6 +347,8 @@ internal data class AndroidNativeStrings(
     val stars: String,
     val analyses: String,
     val averageScore: String,
+    val languageHeat: String,
+    val noTrendData: String,
     val searchFilters: String,
     val keyword: String,
     val date: String,
@@ -339,6 +369,8 @@ internal data class AndroidNativeStrings(
     val backToProjects: String,
     val analyzeThisProject: String,
     val pushed: String,
+    val openIssues: String,
+    val topics: String,
     val analysis: String,
     val analysisSubtitle: String,
     val analysisConfiguration: String,
@@ -347,6 +379,8 @@ internal data class AndroidNativeStrings(
     val useCases: String,
     val techStack: String,
     val risks: String,
+    val licenseFinding: String,
+    val maintenanceActivity: String,
     val analysisDimensions: String,
     val architectureNotes: String,
     val qualitySignals: String,
@@ -355,6 +389,7 @@ internal data class AndroidNativeStrings(
     val recommendation: String,
     val nextSteps: String,
     val evidence: String,
+    val model: String,
     val companyApiSuggestions: String,
     val exportThisAnalysis: String,
     val exports: String,
@@ -410,6 +445,8 @@ internal data class AndroidNativeStrings(
     val saveGithubToken: String,
     val githubTokenHint: String,
     val saveProviderKey: String,
+    val showSecret: String,
+    val hideSecret: String,
     val mcpWriteAccess: String,
     val desktopOnly: String,
     val navItems: List<String>,
@@ -439,6 +476,8 @@ internal data class AndroidNativeStrings(
                     stars = "Stars",
                     analyses = "Analyses",
                     averageScore = "Avg score",
+                    languageHeat = "Language heat",
+                    noTrendData = "No trend data",
                     searchFilters = "Search filters",
                     keyword = "Keyword",
                     date = "Date",
@@ -459,6 +498,8 @@ internal data class AndroidNativeStrings(
                     backToProjects = "Back",
                     analyzeThisProject = "Analyze this project",
                     pushed = "Pushed",
+                    openIssues = "Open issues",
+                    topics = "Topics",
                     analysis = "Analysis",
                     analysisSubtitle = "Use the selected provider and model to produce structured evaluation.",
                     analysisConfiguration = "Analysis configuration",
@@ -467,6 +508,8 @@ internal data class AndroidNativeStrings(
                     useCases = "Use cases",
                     techStack = "Tech stack",
                     risks = "Risks",
+                    licenseFinding = "License finding",
+                    maintenanceActivity = "Maintenance activity",
                     analysisDimensions = "Evaluation dimensions",
                     architectureNotes = "Architecture notes",
                     qualitySignals = "Quality signals",
@@ -475,6 +518,7 @@ internal data class AndroidNativeStrings(
                     recommendation = "Recommendation",
                     nextSteps = "Next steps",
                     evidence = "Evidence",
+                    model = "Model",
                     companyApiSuggestions = "Company API suggestions",
                     exportThisAnalysis = "Export current project",
                     exports = "Exports",
@@ -530,6 +574,8 @@ internal data class AndroidNativeStrings(
                     saveGithubToken = "Save GitHub",
                     githubTokenHint = "Discovery works without one, but GitHub API limits are lower. Create one at https://github.com/settings/tokens; RepoLens stores it only in secure storage.",
                     saveProviderKey = "Save AI key",
+                    showSecret = "Show",
+                    hideSecret = "Hide",
                     mcpWriteAccess = "MCP write access",
                     desktopOnly = "Desktop-only local integration.",
                     navItems = listOf("Discover", "Projects", "Analysis", "Exports", "Settings"),
@@ -544,6 +590,8 @@ internal data class AndroidNativeStrings(
                     stars = "Stars",
                     analyses = "分析",
                     averageScore = "平均分",
+                    languageHeat = "语言热度",
+                    noTrendData = "暂无趋势数据",
                     searchFilters = "搜索条件",
                     keyword = "关键词",
                     date = "时间",
@@ -564,6 +612,8 @@ internal data class AndroidNativeStrings(
                     backToProjects = "返回",
                     analyzeThisProject = "分析这个项目",
                     pushed = "最近推送",
+                    openIssues = "Open issues",
+                    topics = "Topics",
                     analysis = "分析",
                     analysisSubtitle = "使用选定供应商和模型生成结构化评估。",
                     analysisConfiguration = "分析配置",
@@ -572,6 +622,8 @@ internal data class AndroidNativeStrings(
                     useCases = "使用场景",
                     techStack = "技术栈",
                     risks = "风险",
+                    licenseFinding = "许可证判断",
+                    maintenanceActivity = "维护活跃度",
                     analysisDimensions = "评估维度",
                     architectureNotes = "架构观察",
                     qualitySignals = "质量信号",
@@ -580,6 +632,7 @@ internal data class AndroidNativeStrings(
                     recommendation = "建议",
                     nextSteps = "下一步",
                     evidence = "证据",
+                    model = "模型",
                     companyApiSuggestions = "公司 API 建议",
                     exportThisAnalysis = "导出当前项目",
                     exports = "导出",
@@ -635,6 +688,8 @@ internal data class AndroidNativeStrings(
                     saveGithubToken = "保存 GitHub",
                     githubTokenHint = "不填也能搜索，但 GitHub API 额度较低。可到 https://github.com/settings/tokens 创建 Token，保存后只写入安全存储。",
                     saveProviderKey = "保存 AI Key",
+                    showSecret = "显示",
+                    hideSecret = "隐藏",
                     mcpWriteAccess = "MCP 写入权限",
                     desktopOnly = "仅桌面本地集成。",
                     navItems = listOf("发现", "项目", "分析", "导出", "设置"),

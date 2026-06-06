@@ -55,6 +55,7 @@ internal fun KyantGlassColorPalette(
     allowDefault: Boolean = false,
     onSelected: (String) -> Unit,
 ) {
+    val sourceBackdrop = LocalAndroidGlassBackdrop.current ?: backdrop
     var customValue by remember(value) { mutableStateOf(value) }
 
     Column(
@@ -69,7 +70,7 @@ internal fun KyantGlassColorPalette(
                     KyantGlassColorSwatch(
                         option = option,
                         selected = colorOptionSelected(option.value, value),
-                        backdrop = backdrop,
+                        backdrop = sourceBackdrop,
                         onClick = {
                             customValue = option.value
                             onSelected(option.value)
@@ -93,7 +94,7 @@ internal fun KyantGlassColorPalette(
                     }
                 },
                 label = if (allowDefault) "#RRGGBB / default" else "#RRGGBB",
-                backdrop = backdrop,
+                backdrop = sourceBackdrop,
                 modifier = Modifier.weight(1f),
             )
         }
@@ -107,13 +108,14 @@ private fun KyantGlassColorSwatch(
     backdrop: Backdrop,
     onClick: () -> Unit,
 ) {
+    val resolvedBackdrop = LocalAndroidGlassBackdrop.current ?: backdrop
     val color = parseHexColor(option.value)
     Box(
         modifier = Modifier
             .size(44.dp)
             .clip(Capsule())
             .drawBackdrop(
-                backdrop = backdrop,
+                backdrop = resolvedBackdrop,
                 shape = { Capsule() },
                 effects = {
                     vibrancy()
@@ -128,7 +130,7 @@ private fun KyantGlassColorSwatch(
                 shadow = { Shadow(alpha = if (selected) 0.16f else 0.07f) },
                 innerShadow = { InnerShadow(radius = 4f.dp, alpha = 0.18f) },
                 onDrawSurface = {
-                    drawRect(RepoLensAndroidPalette.panel.copy(alpha = 0.22f))
+                    drawRect(RepoLensAndroidTokens.panel.copy(alpha = 0.22f))
                     if (color != null) {
                         drawRect(color.copy(alpha = 0.76f))
                     }
@@ -138,7 +140,7 @@ private fun KyantGlassColorSwatch(
                 val radius = size.height / 2f
                 drawRoundRect(
                     color = if (selected) {
-                        RepoLensAndroidPalette.accent.copy(alpha = 0.78f)
+                        RepoLensAndroidTokens.accent.copy(alpha = 0.78f)
                     } else {
                         Color.White.copy(alpha = 0.55f)
                     },
@@ -153,7 +155,7 @@ private fun KyantGlassColorSwatch(
             Image(
                 painter = rememberVectorPainter(Icons.Outlined.AutoAwesome),
                 contentDescription = option.label,
-                colorFilter = ColorFilter.tint(RepoLensAndroidPalette.accent),
+                colorFilter = ColorFilter.tint(RepoLensAndroidTokens.accent),
                 modifier = Modifier.size(18.dp),
             )
         }
@@ -170,7 +172,7 @@ private fun KyantSelectedColorPreview(value: String) {
             .drawBehind {
                 val radius = size.height / 2f
                 drawRoundRect(
-                    color = color ?: RepoLensAndroidPalette.panel.copy(alpha = 0.34f),
+                    color = color ?: RepoLensAndroidTokens.panel.copy(alpha = 0.34f),
                     cornerRadius = CornerRadius(radius, radius),
                 )
                 drawRoundRect(
@@ -185,7 +187,7 @@ private fun KyantSelectedColorPreview(value: String) {
             Image(
                 painter = rememberVectorPainter(Icons.Outlined.AutoAwesome),
                 contentDescription = value,
-                colorFilter = ColorFilter.tint(RepoLensAndroidPalette.accent),
+                colorFilter = ColorFilter.tint(RepoLensAndroidTokens.accent),
                 modifier = Modifier.size(18.dp),
             )
         }
