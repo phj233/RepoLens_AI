@@ -1,0 +1,91 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+**/.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+*.tmp
+*.temp
+
+# Local secrets and signing material
+.env
+.env.*
+!.env.example
+key.properties
+**/key.properties
+*.keystore
+*.jks
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+#.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+build/
+**/build/
+/coverage/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android / Gradle related
+.gradle/
+/android/.gradle/
+/android/build/
+/android/app/build/
+/android/local.properties
+/android/app/debug
+/android/app/profile
+/android/app/release
+*.apk
+*.aab
+
+# Keep the Gradle wrapper versioned for reproducible Android builds.
+!/android/gradlew
+!/android/gradlew.bat
+!/android/gradle/wrapper/gradle-wrapper.jar
+
+# iOS / macOS generated files
+**/Flutter/ephemeral/
+**/Flutter/Generated.xcconfig
+**/Flutter/flutter_export_environment.sh
+**/Flutter/Flutter.podspec
+**/.symlinks/
+**/Pods/
+**/DerivedData/
+**/xcuserdata/
+**/*.xcuserstate
+
+# Desktop generated Flutter files
+/linux/flutter/ephemeral/
+/macos/Flutter/ephemeral/
+/windows/flutter/ephemeral/
+
+# Test and tool reports
+/build/reports/
+**/build/reports/
