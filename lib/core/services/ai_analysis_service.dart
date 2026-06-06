@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'dart:math';
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:anthropic_sdk_dart/anthropic_sdk_dart.dart' as anthropic;
+import 'package:dio/dio.dart';
 import 'package:openai_dart/openai_dart.dart' as openai;
 
 import '../models/repolens_models.dart';
@@ -20,6 +22,13 @@ class AiAnalysisException implements Exception {
     }
     return '$message: $cause';
   }
+}
+
+class _OpenAiResponseFormatAttempt {
+  const _OpenAiResponseFormatAttempt(this.sdkFormat, this.payload);
+
+  final openai.ResponseFormat? sdkFormat;
+  final Map<String, Object?>? payload;
 }
 
 class AiAnalysisService {
@@ -178,16 +187,39 @@ class AiAnalysisService {
               ],
               temperature: provider.temperature,
               maxTokens: provider.maxOutputTokens,
-              responseFormat: responseFormat,
+              responseFormat: responseFormat.sdkFormat,
             ),
           );
+          final content = _contentFromOpenAiResponse(response.toJson());
+          if (content.trim().isEmpty) {
+            throw const AiAnalysisException(
+              'OpenAI SDK response did not contain analysis content',
+            );
+          }
           return _analysisFromContent(
-            response.text ?? '{}',
+            content,
             project: project,
             modelId: provider.defaultModel.trim(),
           );
         } catch (error) {
           lastError = error;
+          try {
+            final content = await _createOpenAiChatCompletionWithDio(
+              project: project,
+              provider: provider,
+              apiKey: apiKey,
+              language: language,
+              responseFormat: responseFormat,
+              sdkError: error,
+            );
+            return _analysisFromContent(
+              content,
+              project: project,
+              modelId: provider.defaultModel.trim(),
+            );
+          } catch (fallbackError) {
+            lastError = fallbackError;
+          }
         }
       }
 
@@ -241,19 +273,92 @@ class AiAnalysisService {
     }
   }
 
-  List<openai.ResponseFormat?> _openAiResponseFormatFallbacks(
+  Future<String> _createOpenAiChatCompletionWithDio({
+    required AiToolProject project,
+    required AiProviderConfig provider,
+    required String apiKey,
+    required AppLanguage language,
+    required _OpenAiResponseFormatAttempt responseFormat,
+    required Object sdkError,
+  }) async {
+    final dio = Dio(
+      BaseOptions(
+        baseUrl: _normalizedBaseUrl(provider.baseUrl),
+        connectTimeout: const Duration(seconds: 12),
+        receiveTimeout: const Duration(seconds: 45),
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${apiKey.trim()}',
+        },
+        validateStatus: (_) => true,
+      ),
+    );
+    try {
+      final payload = <String, Object?>{
+        'model': provider.defaultModel.trim(),
+        'messages': [
+          {'role': 'system', 'content': _systemPrompt(language)},
+          {'role': 'user', 'content': _analysisPrompt(project, language)},
+        ],
+        'temperature': provider.temperature,
+        'max_tokens': provider.maxOutputTokens,
+        if (responseFormat.payload != null)
+          'response_format': responseFormat.payload,
+      };
+      final response = await _requestWithTransientRetry<Object?>(
+        () => dio.post<Object?>('/chat/completions', data: payload),
+      );
+      if (response.statusCode == null ||
+          response.statusCode! < 200 ||
+          response.statusCode! >= 300) {
+        throw AiAnalysisException(
+          'OpenAI-compatible HTTP ${response.statusCode ?? 'unknown'}: ${_responsePreview(response.data)}; sdk=$sdkError',
+        );
+      }
+      final content = _contentFromOpenAiResponse(response.data);
+      if (content.trim().isEmpty) {
+        throw AiAnalysisException(
+          'OpenAI-compatible response did not contain message content: ${_responsePreview(response.data)}',
+        );
+      }
+      return content;
+    } on AiAnalysisException {
+      rethrow;
+    } catch (error) {
+      throw AiAnalysisException(
+        'OpenAI-compatible HTTP fallback failed',
+        '$error; sdk=$sdkError',
+      );
+    } finally {
+      dio.close(force: true);
+    }
+  }
+
+  List<_OpenAiResponseFormatAttempt> _openAiResponseFormatFallbacks(
     AiProviderConfig provider,
   ) {
     if (!provider.supportsStructuredOutput) {
-      return const [null];
+      return const [_OpenAiResponseFormatAttempt(null, null)];
     }
     return [
-      openai.ResponseFormat.jsonSchema(
-        name: 'repolens_analysis',
-        schema: _analysisJsonSchema(),
+      _OpenAiResponseFormatAttempt(
+        openai.ResponseFormat.jsonSchema(
+          name: 'repolens_analysis',
+          schema: _analysisJsonSchema(),
+        ),
+        {
+          'type': 'json_schema',
+          'json_schema': {
+            'name': 'repolens_analysis',
+            'schema': _analysisJsonSchema(),
+          },
+        },
       ),
-      openai.ResponseFormat.jsonObject(),
-      null,
+      _OpenAiResponseFormatAttempt(openai.ResponseFormat.jsonObject(), {
+        'type': 'json_object',
+      }),
+      const _OpenAiResponseFormatAttempt(null, null),
     ];
   }
 
@@ -510,6 +615,224 @@ $projectJson
 
   String _normalizedBaseUrl(String baseUrl) {
     return baseUrl.trim().replaceFirst(RegExp(r'/+$'), '');
+  }
+
+  String _contentFromOpenAiResponse(Object? value) {
+    final root = _objectMap(value);
+    if (root.isEmpty) {
+      return _contentPartText(value);
+    }
+
+    final outputText = _stringValue(root['output_text']);
+    if (outputText.isNotEmpty) {
+      return outputText;
+    }
+
+    for (final key in ['data', 'result', 'response']) {
+      final nested = root[key];
+      if (nested == null || identical(nested, value)) {
+        continue;
+      }
+      final nestedContent = _contentFromOpenAiResponse(nested);
+      if (nestedContent.trim().isNotEmpty) {
+        return nestedContent;
+      }
+    }
+
+    final choices = root['choices'];
+    if (choices is List && choices.isNotEmpty) {
+      for (final choice in choices) {
+        final firstChoice = _objectMap(choice);
+        final message = _objectMap(firstChoice['message']);
+        final candidates = [
+          _messageContentText(message['content']),
+          _contentPartText(message['parsed']),
+          _toolCallArgumentsText(message['tool_calls']),
+          _functionCallArgumentsText(message['function_call']),
+          _contentPartText(firstChoice['text']),
+        ];
+        for (final candidate in candidates) {
+          if (candidate.trim().isNotEmpty) {
+            return candidate;
+          }
+        }
+      }
+    }
+
+    final output = root['output'];
+    if (output is List) {
+      final parts = output
+          .map(_objectMap)
+          .map((item) {
+            final content = _contentPartText(item['content']);
+            if (content.trim().isNotEmpty) {
+              return content;
+            }
+            final toolArguments = _toolCallArgumentsText(item['tool_calls']);
+            if (toolArguments.trim().isNotEmpty) {
+              return toolArguments;
+            }
+            return _functionCallArgumentsText(item);
+          })
+          .where((text) => text.isNotEmpty)
+          .toList(growable: false);
+      if (parts.isNotEmpty) {
+        return parts.join('\n');
+      }
+    }
+
+    final directContent = _contentPartText(root['content']);
+    if (directContent.trim().isNotEmpty) {
+      return directContent;
+    }
+
+    return '';
+  }
+
+  String _messageContentText(Object? content) {
+    return _contentPartText(content);
+  }
+
+  String _toolCallArgumentsText(Object? toolCalls) {
+    final calls = switch (toolCalls) {
+      List<Object?> items => items,
+      Map<Object?, Object?> item => [item],
+      _ => const <Object?>[],
+    };
+    for (final call in calls) {
+      final map = _objectMap(call);
+      final function = _objectMap(map['function']);
+      final candidates = [
+        function['arguments'],
+        map['arguments'],
+        map['input'],
+      ];
+      for (final candidate in candidates) {
+        final text = _contentPartText(candidate);
+        if (text.trim().isNotEmpty) {
+          return text;
+        }
+      }
+    }
+    return '';
+  }
+
+  String _functionCallArgumentsText(Object? functionCall) {
+    final map = _objectMap(functionCall);
+    if (map.isEmpty) {
+      return '';
+    }
+    return _contentPartText(map['arguments']);
+  }
+
+  String _contentPartText(Object? value) {
+    if (value == null) {
+      return '';
+    }
+    if (value is String) {
+      return value;
+    }
+    if (value is num || value is bool) {
+      return '$value';
+    }
+    if (value is List) {
+      return value
+          .map(_contentPartText)
+          .where((text) => text.trim().isNotEmpty)
+          .join('\n');
+    }
+    final map = _objectMap(value);
+    if (map.isEmpty) {
+      return '';
+    }
+    for (final key in [
+      'text',
+      'content',
+      'value',
+      'json',
+      'arguments',
+      'input',
+    ]) {
+      final text = _contentPartText(map[key]);
+      if (text.trim().isNotEmpty) {
+        return text;
+      }
+    }
+    if (map.containsKey('category') ||
+        map.containsKey('summary') ||
+        map.containsKey('analysis')) {
+      return jsonEncode(map);
+    }
+    return '';
+  }
+
+  Map<String, Object?> _objectMap(Object? value) {
+    if (value is! Map) {
+      return const {};
+    }
+    return value.map((key, value) => MapEntry('$key', value));
+  }
+
+  String _responsePreview(Object? value) {
+    final text = value.toString().replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (text.length <= 220) {
+      return text;
+    }
+    return '${text.substring(0, 220)}...';
+  }
+
+  Future<Response<T>> _requestWithTransientRetry<T>(
+    Future<Response<T>> Function() request,
+  ) async {
+    Object? lastError;
+    const delays = [
+      Duration(milliseconds: 650),
+      Duration(seconds: 2),
+      Duration(seconds: 5),
+    ];
+    for (var attempt = 0; attempt < delays.length + 1; attempt++) {
+      try {
+        final response = await request();
+        if (!_isRetryableStatus(response.statusCode) ||
+            attempt == delays.length) {
+          return response;
+        }
+        lastError = AiAnalysisException(
+          'retryable_http_${response.statusCode}',
+        );
+      } catch (error) {
+        if (!_isTransientNetworkError(error) || attempt == delays.length) {
+          rethrow;
+        }
+        lastError = error;
+      }
+      await Future<void>.delayed(delays[attempt]);
+    }
+    throw AiAnalysisException('network_retry_exhausted', lastError);
+  }
+
+  bool _isRetryableStatus(int? statusCode) {
+    return statusCode == 429 ||
+        statusCode == 502 ||
+        statusCode == 503 ||
+        statusCode == 504;
+  }
+
+  bool _isTransientNetworkError(Object error) {
+    if (error is! DioException) {
+      return false;
+    }
+    if (error.type == DioExceptionType.connectionTimeout ||
+        error.type == DioExceptionType.sendTimeout ||
+        error.type == DioExceptionType.receiveTimeout ||
+        error.type == DioExceptionType.connectionError) {
+      return true;
+    }
+    final message = error.toString().toLowerCase();
+    return message.contains('failed host lookup') ||
+        message.contains('connection reset') ||
+        message.contains('network is unreachable') ||
+        message.contains('connection refused');
   }
 
   Map<String, dynamic> _analysisJsonSchema() {

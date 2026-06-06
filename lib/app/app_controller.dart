@@ -205,6 +205,30 @@ class AppController extends Notifier<AppState> {
     state = state.copyWith(clearPreviewImage: true, clearNotice: true);
   }
 
+  bool handleSystemBack() {
+    if (state.previewImagePath != null) {
+      closeImagePreview();
+      return true;
+    }
+    if (state.projectDetailOpen) {
+      closeProjectDetail();
+      return true;
+    }
+    if (state.settingsProviderDetailOpen) {
+      closeSettingsProviderDetail();
+      return true;
+    }
+    if (state.settingsAppearanceDetailOpen) {
+      closeSettingsAppearanceDetail();
+      return true;
+    }
+    if (state.navigationIndex != 0) {
+      setNavigationIndex(0);
+      return true;
+    }
+    return false;
+  }
+
   Future<void> discover() async {
     state = state.copyWith(
       isDiscovering: true,
@@ -251,9 +275,7 @@ class AppController extends Notifier<AppState> {
     );
 
     try {
-      final apiKey = await _credentialStore.read(
-        state.settings.provider.apiKeyRef ?? state.settings.provider.id,
-      );
+      final apiKey = await _readProviderApiKey(state.settings.provider);
       final analysis = await _analysisService.analyzeProject(
         project: project,
         settings: state.settings,
@@ -411,9 +433,7 @@ class AppController extends Notifier<AppState> {
       noticeMessage: _message('fetchingProviderModels'),
     );
     try {
-      final apiKey = await _credentialStore.read(
-        provider.apiKeyRef ?? provider.id,
-      );
+      final apiKey = await _readProviderApiKey(provider);
       final models = await _modelCatalogService.fetchModels(
         provider: provider,
         apiKey: apiKey,
@@ -443,10 +463,14 @@ class AppController extends Notifier<AppState> {
         isFetchingModels: false,
         noticeMessage: _localizations().providerModelsFetched(models.length),
       );
-    } catch (_) {
+    } catch (error) {
+      final detail = _safeErrorDetail(error);
+      debugPrint('[RepoLensAI] fetch provider models failed: $detail');
       state = state.copyWith(
         isFetchingModels: false,
-        errorMessage: _message('fetchProviderModelsFailed'),
+        errorMessage: _localizations().fetchProviderModelsFailedWithDetail(
+          detail,
+        ),
         clearNotice: true,
       );
     }
@@ -457,11 +481,18 @@ class AppController extends Notifier<AppState> {
     state = state.copyWith(noticeMessage: _message('githubTokenSaved'));
   }
 
-  Future<void> saveProviderApiKey(String apiKey) async {
-    await _credentialStore.write(
-      state.settings.provider.apiKeyRef ?? state.settings.provider.id,
-      apiKey,
-    );
+  Future<String> readSelectedProviderApiKey() async {
+    final apiKey = await _readProviderApiKey(state.settings.provider);
+    return apiKey ?? '';
+  }
+
+  Future<void> saveProviderApiKey(String apiKey, {String? apiKeyRef}) async {
+    for (final ref in _providerCredentialRefs(
+      state.settings.provider,
+      preferredRef: apiKeyRef,
+    )) {
+      await _credentialStore.write(ref, apiKey);
+    }
     state = state.copyWith(noticeMessage: _message('providerKeySaved'));
   }
 
@@ -620,6 +651,32 @@ class AppController extends Notifier<AppState> {
   }
 
   String _message(String key) => _localizations().t(key);
+
+  Future<String?> _readProviderApiKey(AiProviderConfig provider) async {
+    for (final ref in _providerCredentialRefs(provider)) {
+      final value = await _credentialStore.read(ref);
+      if (value != null && value.trim().isNotEmpty) {
+        return value;
+      }
+    }
+    return null;
+  }
+
+  List<String> _providerCredentialRefs(
+    AiProviderConfig provider, {
+    String? preferredRef,
+  }) {
+    final refs = <String>[
+      ?preferredRef,
+      ?provider.apiKeyRef,
+      provider.id,
+    ];
+    return refs
+        .map((ref) => ref.trim())
+        .where((ref) => ref.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+  }
 
   String _safeErrorDetail(Object error) {
     final raw = error.toString();

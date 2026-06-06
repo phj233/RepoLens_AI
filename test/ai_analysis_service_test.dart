@@ -59,7 +59,9 @@ void main() {
         final payload = jsonDecode(body) as Map<String, dynamic>;
         payloads.add(payload);
 
-        if (payloads.length == 1) {
+        final responseFormat = payload['response_format'];
+        if (responseFormat is Map<String, dynamic> &&
+            responseFormat['type'] == 'json_schema') {
           await _writeJson(request.response, HttpStatus.badRequest, {
             'error': {'message': 'json_schema is not supported'},
           });
@@ -81,7 +83,7 @@ void main() {
       );
 
       expect(analysis.summary, 'Remote summary');
-      expect(payloads, hasLength(2));
+      expect(payloads, hasLength(3));
       expect(payloads[0]['response_format'], isA<Map>());
       expect(
         (payloads[0]['response_format'] as Map<String, dynamic>)['type'],
@@ -89,6 +91,10 @@ void main() {
       );
       expect(
         (payloads[1]['response_format'] as Map<String, dynamic>)['type'],
+        'json_schema',
+      );
+      expect(
+        (payloads[2]['response_format'] as Map<String, dynamic>)['type'],
         'json_object',
       );
     },
@@ -223,6 +229,73 @@ void main() {
       expect(analysis.businessFit, 'Useful evaluation reference.');
     },
   );
+
+  test('OpenAI-compatible analysis reads nested content-part text', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() => server.close(force: true));
+
+    server.listen((request) async {
+      await request.drain<void>();
+      await _writeJson(request.response, HttpStatus.ok, {
+        'data': _chatCompletionResponseWithContent([
+          {
+            'type': 'text',
+            'text': {
+              'value': jsonEncode(
+                _analysisJson(summary: 'Nested part summary'),
+              ),
+            },
+          },
+        ]),
+      });
+    });
+
+    final provider = _providerFor(server, supportsStructuredOutput: false);
+    final analysis = await AiAnalysisService().analyzeProject(
+      project: project,
+      settings: _settingsFor(provider),
+      apiKey: 'test-key',
+    );
+
+    expect(analysis.summary, 'Nested part summary');
+  });
+
+  test('OpenAI-compatible analysis reads tool call arguments', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() => server.close(force: true));
+
+    server.listen((request) async {
+      await request.drain<void>();
+      await _writeJson(
+        request.response,
+        HttpStatus.ok,
+        _chatCompletionResponseWithMessage({
+          'role': 'assistant',
+          'tool_calls': [
+            {
+              'id': 'call_test',
+              'type': 'function',
+              'function': {
+                'name': 'repolens_analysis',
+                'arguments': jsonEncode(
+                  _analysisJson(summary: 'Tool call summary'),
+                ),
+              },
+            },
+          ],
+        }),
+      );
+    });
+
+    final provider = _providerFor(server, supportsStructuredOutput: false);
+    final analysis = await AiAnalysisService().analyzeProject(
+      project: project,
+      settings: _settingsFor(provider),
+      apiKey: 'test-key',
+    );
+
+    expect(analysis.summary, 'Tool call summary');
+  });
 }
 
 AiProviderConfig _providerFor(
@@ -276,17 +349,26 @@ Map<String, Object?> _analysisJson({required String summary}) {
 }
 
 Map<String, Object?> _chatCompletionResponse(Map<String, Object?> analysis) {
+  return _chatCompletionResponseWithContent(jsonEncode(analysis));
+}
+
+Map<String, Object?> _chatCompletionResponseWithContent(Object? content) {
+  return _chatCompletionResponseWithMessage({
+    'role': 'assistant',
+    'content': content,
+  });
+}
+
+Map<String, Object?> _chatCompletionResponseWithMessage(
+  Map<String, Object?> message,
+) {
   return {
     'id': 'chatcmpl-test',
     'object': 'chat.completion',
     'created': 1710000000,
     'model': 'test-model',
     'choices': [
-      {
-        'index': 0,
-        'message': {'role': 'assistant', 'content': jsonEncode(analysis)},
-        'finish_reason': 'stop',
-      },
+      {'index': 0, 'message': message, 'finish_reason': 'stop'},
     ],
     'usage': {'prompt_tokens': 12, 'completion_tokens': 24, 'total_tokens': 36},
   };
