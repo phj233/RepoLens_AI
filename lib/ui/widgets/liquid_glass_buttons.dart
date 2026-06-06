@@ -111,6 +111,7 @@ class LiquidGlassIconButton extends StatelessWidget {
     }
 
     final scheme = Theme.of(context).colorScheme;
+    final tokens = context.repoLensTokens;
     final button = Semantics(
       button: true,
       label: tooltip,
@@ -127,7 +128,7 @@ class LiquidGlassIconButton extends StatelessWidget {
               context,
               icon,
               size: 19,
-              color: selected ? const Color(0xFF9A6D2E) : scheme.onSurface,
+              color: selected ? tokens.warning : scheme.onSurface,
             ),
           ),
         ),

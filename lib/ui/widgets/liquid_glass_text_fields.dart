@@ -6,6 +6,9 @@ class LiquidGlassTextField extends StatelessWidget {
     required this.controller,
     required this.label,
     this.prefixIcon,
+    this.suffixIcon,
+    this.suffixTooltip,
+    this.onSuffixPressed,
     this.obscureText = false,
     this.keyboardType,
     this.onChanged,
@@ -15,6 +18,9 @@ class LiquidGlassTextField extends StatelessWidget {
   final TextEditingController controller;
   final String label;
   final IconData? prefixIcon;
+  final IconData? suffixIcon;
+  final String? suffixTooltip;
+  final VoidCallback? onSuffixPressed;
   final bool obscureText;
   final TextInputType? keyboardType;
   final ValueChanged<String>? onChanged;
@@ -30,6 +36,13 @@ class LiquidGlassTextField extends StatelessWidget {
         decoration: InputDecoration(
           labelText: label,
           prefixIcon: prefixIcon == null ? null : Icon(prefixIcon),
+          suffixIcon: suffixIcon == null
+              ? null
+              : IconButton(
+                  tooltip: suffixTooltip,
+                  onPressed: onSuffixPressed,
+                  icon: Icon(suffixIcon),
+                ),
         ),
         onChanged: onChanged,
         onSubmitted: onSubmitted,
@@ -40,6 +53,9 @@ class LiquidGlassTextField extends StatelessWidget {
       controller: controller,
       label: label,
       prefixIcon: prefixIcon,
+      suffixIcon: suffixIcon,
+      suffixTooltip: suffixTooltip,
+      onSuffixPressed: onSuffixPressed,
       obscureText: obscureText,
       keyboardType: keyboardType,
       onChanged: onChanged,
@@ -57,6 +73,9 @@ class _LiquidGlassEditableField extends StatefulWidget {
     required this.onChanged,
     required this.onSubmitted,
     this.prefixIcon,
+    this.suffixIcon,
+    this.suffixTooltip,
+    this.onSuffixPressed,
   });
 
   final TextEditingController controller;
@@ -66,6 +85,9 @@ class _LiquidGlassEditableField extends StatefulWidget {
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
   final IconData? prefixIcon;
+  final IconData? suffixIcon;
+  final String? suffixTooltip;
+  final VoidCallback? onSuffixPressed;
 
   @override
   State<_LiquidGlassEditableField> createState() =>
@@ -164,6 +186,20 @@ class _LiquidGlassEditableFieldState extends State<_LiquidGlassEditableField> {
                   ],
                 ),
               ),
+              if (widget.suffixIcon != null) ...[
+                const SizedBox(width: 8),
+                IconButton(
+                  tooltip: widget.suffixTooltip,
+                  onPressed: widget.onSuffixPressed,
+                  icon: Icon(widget.suffixIcon, size: 20),
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints.tightFor(
+                    width: 34,
+                    height: 34,
+                  ),
+                ),
+              ],
             ],
           ),
         ),

@@ -92,6 +92,41 @@ git push origin v1.0.0
 
 Release workflow 会构建并上传 Android APK/AAB、macOS、Linux、Windows 产物；iOS 当前输出 unsigned app archive，后续可接入 Apple 签名和 TestFlight 流程。
 
+### 本地构建产物位置
+
+常用本地构建命令和输出位置如下：
+
+```bash
+flutter build apk --release --split-per-abi
+flutter build appbundle --release
+flutter build macos --release
+flutter build ios --release --no-codesign
+flutter build linux --release
+flutter build windows --release
+```
+
+- Android split APK：`build/app/outputs/flutter-apk/app-arm64-v8a-release.apk`、`build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk`、`build/app/outputs/flutter-apk/app-x86_64-release.apk`
+- Android App Bundle：`build/app/outputs/bundle/release/app-release.aab`
+- macOS app：`build/macos/Build/Products/Release/repolens_ai.app`
+- iOS unsigned app：`build/ios/iphoneos/Runner.app`
+- Linux bundle：`build/linux/x64/release/bundle/`
+- Windows bundle：`build/windows/x64/runner/Release/`
+
+### GitHub Release 产物
+
+Release workflow 会先把平台产物收集到 CI 的 `dist/` 目录，再上传到 GitHub Release。发布页最终会包含：
+
+- `repolens-ai-<version>-armeabi-v7a.apk`
+- `repolens-ai-<version>-arm64-v8a.apk`
+- `repolens-ai-<version>-x86_64.apk`
+- `repolens-ai-<version>.aab`
+- `repolens-ai-<version>-macos.zip`
+- `repolens-ai-<version>-ios-unsigned.zip`
+- `repolens-ai-<version>-linux-x64.tar.gz`
+- `repolens-ai-<version>-windows-x64.zip`
+
+在 GitHub Actions 单次运行页面里，也可以从 `Artifacts` 下载临时构建产物：`android-release`、`macos-release`、`ios-unsigned`、`linux-release`、`windows-release`。
+
 Android 正式签名是可选配置。需要正式签名时，在 GitHub 仓库 Secrets 中添加：
 
 - `ANDROID_KEYSTORE_BASE64`：release keystore 的 base64 内容。

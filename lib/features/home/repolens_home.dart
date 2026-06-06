@@ -11,6 +11,7 @@ import '../../app/native_shell_bridge.dart';
 import '../../app/providers.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/repolens_models.dart';
+import '../../ui/theme.dart';
 import '../../ui/visual_style_resolver.dart';
 import '../../ui/widgets/liquid_glass_controls.dart';
 import '../../ui/widgets/native_glass_surface.dart';
@@ -114,17 +115,25 @@ class _RepoLensHomeState extends ConsumerState<RepoLensHome> {
       ),
     );
 
-    if (!usesLiquidGlass) {
-      return Scaffold(body: workspace);
-    }
+    final page = !usesLiquidGlass
+        ? Scaffold(body: workspace)
+        : _LiquidGlassAppFrame(
+            message: state.errorMessage ?? state.noticeMessage,
+            isError: state.errorMessage != null,
+            previewImagePath: state.previewImagePath,
+            onDismissMessage: controller.dismissMessage,
+            onClosePreview: controller.closeImagePreview,
+            child: workspace,
+          );
 
-    return _LiquidGlassAppFrame(
-      message: state.errorMessage ?? state.noticeMessage,
-      isError: state.errorMessage != null,
-      previewImagePath: state.previewImagePath,
-      onDismissMessage: controller.dismissMessage,
-      onClosePreview: controller.closeImagePreview,
-      child: workspace,
+    return PopScope<Object?>(
+      canPop: !state.hasInAppBackDestination,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          controller.handleSystemBack();
+        }
+      },
+      child: page,
     );
   }
 

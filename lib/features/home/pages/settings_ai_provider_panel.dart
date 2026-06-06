@@ -33,6 +33,7 @@ class _AiProviderSettingsPanelState extends State<AiProviderSettingsPanel> {
   late final TextEditingController _maxTokensController;
   late final TextEditingController _apiKeyController;
   String? _activeProviderId;
+  bool _showApiKey = true;
 
   @override
   void initState() {
@@ -52,6 +53,7 @@ class _AiProviderSettingsPanelState extends State<AiProviderSettingsPanel> {
       text: '${provider.maxOutputTokens}',
     );
     _apiKeyController = TextEditingController();
+    _loadProviderApiKey(provider.id);
   }
 
   @override
@@ -149,8 +151,19 @@ class _AiProviderSettingsPanelState extends State<AiProviderSettingsPanel> {
               ),
               LiquidGlassTextField(
                 controller: _apiKeyController,
-                obscureText: true,
+                obscureText: !_showApiKey,
                 label: l10n.t('selectedProviderApiKey'),
+                suffixIcon: _showApiKey
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined,
+                suffixTooltip: _showApiKey
+                    ? l10n.t('hideSecret')
+                    : l10n.t('showSecret'),
+                onSuffixPressed: () {
+                  setState(() {
+                    _showApiKey = !_showApiKey;
+                  });
+                },
               ),
               _ModelSelector(
                 provider: provider,
@@ -276,7 +289,20 @@ class _AiProviderSettingsPanelState extends State<AiProviderSettingsPanel> {
     _contextController.text = '${provider.contextLength}';
     _temperatureController.text = '${provider.temperature}';
     _maxTokensController.text = '${provider.maxOutputTokens}';
+    _showApiKey = true;
+    _loadProviderApiKey(provider.id);
+  }
+
+  Future<void> _loadProviderApiKey(String providerId) async {
     _apiKeyController.clear();
+    final apiKey = await widget.controller.readSelectedProviderApiKey();
+    if (!mounted || _activeProviderId != providerId) {
+      return;
+    }
+    _apiKeyController.text = apiKey;
+    setState(() {
+      _showApiKey = true;
+    });
   }
 
   void _addProvider() {
@@ -323,8 +349,13 @@ class _AiProviderSettingsPanelState extends State<AiProviderSettingsPanel> {
     );
     widget.controller.updateProvider(provider);
     if (apiKey.isNotEmpty) {
-      widget.controller.saveProviderApiKey(apiKey);
-      _apiKeyController.clear();
+      widget.controller.saveProviderApiKey(
+        apiKey,
+        apiKeyRef: provider.apiKeyRef ?? provider.id,
+      );
+      setState(() {
+        _showApiKey = true;
+      });
     }
   }
 }

@@ -27,6 +27,7 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   final _githubTokenController = TextEditingController();
+  bool _showGithubToken = true;
 
   @override
   void dispose() {
@@ -167,8 +168,19 @@ class _SettingsPageState extends State<SettingsPage> {
               const SizedBox(height: 14),
               LiquidGlassTextField(
                 controller: _githubTokenController,
-                obscureText: true,
+                obscureText: !_showGithubToken,
                 label: 'GitHub Token',
+                suffixIcon: _showGithubToken
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined,
+                suffixTooltip: _showGithubToken
+                    ? l10n.t('hideSecret')
+                    : l10n.t('showSecret'),
+                onSuffixPressed: () {
+                  setState(() {
+                    _showGithubToken = !_showGithubToken;
+                  });
+                },
               ),
               const SizedBox(height: 12),
               Wrap(
@@ -182,6 +194,9 @@ class _SettingsPageState extends State<SettingsPage> {
                           _githubTokenController.text.trim(),
                         );
                         _githubTokenController.clear();
+                        setState(() {
+                          _showGithubToken = true;
+                        });
                       }
                     },
                     icon: const Icon(Icons.key),

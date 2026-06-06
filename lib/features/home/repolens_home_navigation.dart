@@ -165,6 +165,7 @@ class _SideNavigation extends StatelessWidget {
     final usesLiquidGlass =
         resolveVisualStyleForPlatform(state.settings.visualStyle) ==
         VisualStyle.liquidGlass;
+    final tokens = context.repoLensTokens;
     return SizedBox(
       width: 248,
       child: NativeGlassSurface(
@@ -181,13 +182,13 @@ class _SideNavigation extends StatelessWidget {
                     color: Theme.of(context).colorScheme.primary,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const SizedBox(
+                  child: SizedBox(
                     width: 38,
                     height: 38,
                     child: Center(
                       child: LiquidGlassSymbol(
                         icon: Icons.travel_explore,
-                        color: Color(0xFFF5F7F2),
+                        color: tokens.onAccent,
                         size: 22,
                       ),
                     ),

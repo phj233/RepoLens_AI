@@ -60,7 +60,15 @@ class _RepoLensNativeBridgeHostState
       _pushState(state);
     });
 
-    return const SizedBox.shrink();
+    return PopScope<Object?>(
+      canPop: !state.hasInAppBackDestination,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          ref.read(appControllerProvider.notifier).handleSystemBack();
+        }
+      },
+      child: const SizedBox.shrink(),
+    );
   }
 
   Future<void> _pushState([AppState? state]) async {
@@ -98,6 +106,8 @@ Future<Object?> handleNativeShellCall(MethodCall call, WidgetRef ref) async {
     case 'closeImagePreview':
       controller.closeImagePreview();
       return null;
+    case 'handleSystemBack':
+      return controller.handleSystemBack();
     case 'updateFilters':
       final args = _asMap(call.arguments);
       controller.updateFilters(
@@ -222,12 +232,28 @@ Future<Object?> handleNativeShellCall(MethodCall call, WidgetRef ref) async {
       await controller.updateMcpWriteAccess(call.arguments == true);
       return null;
     case 'updateProvider':
-      final provider = AiProviderConfig.fromJson(_asMap(call.arguments));
+      final args = _asMap(call.arguments);
+      final provider = AiProviderConfig.fromJson(args);
       await controller.updateProvider(provider);
+      final apiKey = (args['apiKey'] as String?)?.trim();
+      if (apiKey != null && apiKey.isNotEmpty) {
+        await controller.saveProviderApiKey(
+          apiKey,
+          apiKeyRef: provider.apiKeyRef ?? provider.id,
+        );
+      }
       return null;
     case 'addProvider':
-      final provider = AiProviderConfig.fromJson(_asMap(call.arguments));
+      final args = _asMap(call.arguments);
+      final provider = AiProviderConfig.fromJson(args);
       await controller.addProvider(provider);
+      final apiKey = (args['apiKey'] as String?)?.trim();
+      if (apiKey != null && apiKey.isNotEmpty) {
+        await controller.saveProviderApiKey(
+          apiKey,
+          apiKeyRef: provider.apiKeyRef ?? provider.id,
+        );
+      }
       return null;
     case 'selectProvider':
       final providerId = call.arguments as String?;
@@ -244,6 +270,8 @@ Future<Object?> handleNativeShellCall(MethodCall call, WidgetRef ref) async {
     case 'refreshSelectedProviderModels':
       await controller.refreshSelectedProviderModels();
       return null;
+    case 'readSelectedProviderApiKey':
+      return controller.readSelectedProviderApiKey();
     case 'saveGithubToken':
       final token = (call.arguments as String?)?.trim();
       if (token != null && token.isNotEmpty) {
@@ -251,9 +279,15 @@ Future<Object?> handleNativeShellCall(MethodCall call, WidgetRef ref) async {
       }
       return null;
     case 'saveProviderApiKey':
-      final apiKey = (call.arguments as String?)?.trim();
+      final args = _asMap(call.arguments);
+      final apiKey =
+          (call.arguments is String
+                  ? call.arguments as String?
+                  : args['apiKey'] as String?)
+              ?.trim();
+      final apiKeyRef = args['apiKeyRef'] as String?;
       if (apiKey != null && apiKey.isNotEmpty) {
-        await controller.saveProviderApiKey(apiKey);
+        await controller.saveProviderApiKey(apiKey, apiKeyRef: apiKeyRef);
       }
       return null;
     default:

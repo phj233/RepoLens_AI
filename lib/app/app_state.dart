@@ -80,6 +80,14 @@ class AppState {
     return analysisByProject[project.fullName];
   }
 
+  bool get hasInAppBackDestination {
+    return previewImagePath != null ||
+        projectDetailOpen ||
+        settingsProviderDetailOpen ||
+        settingsAppearanceDetailOpen ||
+        navigationIndex != 0;
+  }
+
   Map<String, AiToolAnalysis> get analysisByProject {
     return {
       for (final analysis in analyses) analysis.projectFullName: analysis,

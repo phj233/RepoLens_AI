@@ -81,6 +81,16 @@ class AppLocalizations {
         : '${t('analysisFailed')}\n详情：$trimmed';
   }
 
+  String fetchProviderModelsFailedWithDetail(String detail) {
+    final trimmed = detail.trim();
+    if (trimmed.isEmpty) {
+      return t('fetchProviderModelsFailed');
+    }
+    return isEnglish
+        ? '${t('fetchProviderModelsFailed')}\nDetail: $trimmed'
+        : '${t('fetchProviderModelsFailed')}\n详情：$trimmed';
+  }
+
   String exportedTo(String path) {
     return isEnglish ? 'Exported to $path' : '已导出到 $path';
   }
@@ -259,6 +269,8 @@ const _zh = {
   'githubTokenHint':
       '不填也能搜索，但 GitHub API 额度较低。可到 https://github.com/settings/tokens 创建 Token，保存后只写入安全存储。',
   'saveProviderKey': '保存 Provider Key',
+  'showSecret': '显示',
+  'hideSecret': '隐藏',
   'mcpWriteAccess': 'MCP write_import_file 写入权限',
   'mcpWriteAccessSubtitle': '关闭时，本地 MCP sidecar 不能写入外部项目文件。',
   'backdropReady': 'Backdrop ready',
@@ -417,6 +429,8 @@ const _en = {
   'githubTokenHint':
       'Discovery works without one, but GitHub API limits are lower. Create a token at https://github.com/settings/tokens; RepoLens stores it only in secure storage.',
   'saveProviderKey': 'Save provider key',
+  'showSecret': 'Show',
+  'hideSecret': 'Hide',
   'mcpWriteAccess': 'MCP write_import_file access',
   'mcpWriteAccessSubtitle':
       'When disabled, the local MCP sidecar cannot write to external projects.',
