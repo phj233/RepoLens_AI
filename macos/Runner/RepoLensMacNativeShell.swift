@@ -8,6 +8,7 @@ struct RepoLensMacNativeShell: View {
   @ObservedObject var shellState: RepoLensNativeShellState
 
   var body: some View {
+    let tokens = RepoLensNativeTokens(settings: shellState.snapshot.settings)
     Group {
       if #available(macOS 13.0, *) {
         NavigationSplitView {
@@ -32,7 +33,8 @@ struct RepoLensMacNativeShell: View {
       }
     }
     .preferredColorScheme(nativeColorScheme)
-    .tint(shellState.snapshot.settings.themeAccentColor)
+    .tint(tokens.accent)
+    .environment(\.repoLensTokens, tokens)
   }
 
   private var nativeColorScheme: ColorScheme? {

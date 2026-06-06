@@ -14,6 +14,7 @@
 		7884E8682EC3CC0700C636F2 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7884E8672EC3CC0400C636F2 /* SceneDelegate.swift */; };
 		AE22D45C21A3CBE1260F9443 /* RepoLensIOSBottomBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AE89A715F6CDE0FEED5A138 /* RepoLensIOSBottomBar.swift */; };
 		53C2D10D4225F00E2D253988 /* RepoLensNativeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DFE8E93DF75890AA70445AA /* RepoLensNativeModels.swift */; };
+		B4F3A16E4E0B42D68A200101 /* RepoLensIOSTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4F3A16D4E0B42D68A200101 /* RepoLensIOSTokens.swift */; };
 		C46278E360F8FC5F129BBBFF /* RepoLensIOSNavigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0CAF6C8EA4E7FA213C5D335 /* RepoLensIOSNavigation.swift */; };
 		04D35FC2DA1C27B1AF1C60C7 /* RepoLensIOSPages.swift in Sources */ = {isa = PBXBuildFile; fileRef = D76C7802E8FB8E0C330D562F /* RepoLensIOSPages.swift */; };
 		36ECCA611CD7F72C5A3AB1F6 /* RepoLensIOSComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76DF83EB06A8B97FBE707D12 /* RepoLensIOSComponents.swift */; };
@@ -59,6 +60,7 @@
 		7884E8672EC3CC0400C636F2 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		8AE89A715F6CDE0FEED5A138 /* RepoLensIOSBottomBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepoLensIOSBottomBar.swift; sourceTree = "<group>"; };
 		9DFE8E93DF75890AA70445AA /* RepoLensNativeModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepoLensNativeModels.swift; sourceTree = "<group>"; };
+		B4F3A16D4E0B42D68A200101 /* RepoLensIOSTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepoLensIOSTokens.swift; sourceTree = "<group>"; };
 		F0CAF6C8EA4E7FA213C5D335 /* RepoLensIOSNavigation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepoLensIOSNavigation.swift; sourceTree = "<group>"; };
 		D76C7802E8FB8E0C330D562F /* RepoLensIOSPages.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepoLensIOSPages.swift; sourceTree = "<group>"; };
 		76DF83EB06A8B97FBE707D12 /* RepoLensIOSComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepoLensIOSComponents.swift; sourceTree = "<group>"; };
@@ -146,6 +148,7 @@
 				7884E8672EC3CC0400C636F2 /* SceneDelegate.swift */,
 				8AE89A715F6CDE0FEED5A138 /* RepoLensIOSBottomBar.swift */,
 				9DFE8E93DF75890AA70445AA /* RepoLensNativeModels.swift */,
+				B4F3A16D4E0B42D68A200101 /* RepoLensIOSTokens.swift */,
 				F0CAF6C8EA4E7FA213C5D335 /* RepoLensIOSNavigation.swift */,
 				D76C7802E8FB8E0C330D562F /* RepoLensIOSPages.swift */,
 				76DF83EB06A8B97FBE707D12 /* RepoLensIOSComponents.swift */,
@@ -315,6 +318,7 @@
 				7884E8682EC3CC0700C636F2 /* SceneDelegate.swift in Sources */,
 				AE22D45C21A3CBE1260F9443 /* RepoLensIOSBottomBar.swift in Sources */,
 				53C2D10D4225F00E2D253988 /* RepoLensNativeModels.swift in Sources */,
+				B4F3A16E4E0B42D68A200101 /* RepoLensIOSTokens.swift in Sources */,
 				C46278E360F8FC5F129BBBFF /* RepoLensIOSNavigation.swift in Sources */,
 				04D35FC2DA1C27B1AF1C60C7 /* RepoLensIOSPages.swift in Sources */,
 				36ECCA611CD7F72C5A3AB1F6 /* RepoLensIOSComponents.swift in Sources */,

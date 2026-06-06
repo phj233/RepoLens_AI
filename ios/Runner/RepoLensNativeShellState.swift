@@ -158,8 +158,20 @@ final class RepoLensNativeShellState: ObservableObject {
     invoke("saveGithubToken", arguments: token)
   }
 
-  func saveProviderApiKey(_ apiKey: String) {
-    invoke("saveProviderApiKey", arguments: apiKey)
+  func saveProviderApiKey(_ apiKey: String, apiKeyRef: String? = nil) {
+    var arguments: [String: Any] = ["apiKey": apiKey]
+    if let apiKeyRef {
+      arguments["apiKeyRef"] = apiKeyRef
+    }
+    invoke("saveProviderApiKey", arguments: arguments)
+  }
+
+  func readSelectedProviderApiKey(_ completion: @escaping (String) -> Void) {
+    channel.invokeMethod("readSelectedProviderApiKey", arguments: nil) { result in
+      DispatchQueue.main.async {
+        completion(result as? String ?? "")
+      }
+    }
   }
 
   private func invoke(_ method: String, arguments: Any? = nil) {

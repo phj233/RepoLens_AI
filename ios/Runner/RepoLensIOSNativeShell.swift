@@ -14,6 +14,7 @@ struct RepoLensIOSNativeShell: View {
 
   @ViewBuilder
   private var shellContent: some View {
+    let tokens = RepoLensNativeTokens(settings: shellState.snapshot.settings)
     ZStack(alignment: .topTrailing) {
       Color(UIColor.systemGroupedBackground).ignoresSafeArea()
       nativePage
@@ -80,7 +81,8 @@ struct RepoLensIOSNativeShell: View {
       }
     }
     .preferredColorScheme(nativeColorScheme)
-    .tint(shellState.snapshot.settings.themeAccentColor)
+    .tint(tokens.accent)
+    .environment(\.repoLensTokens, tokens)
   }
 
   private var nativeColorScheme: ColorScheme? {

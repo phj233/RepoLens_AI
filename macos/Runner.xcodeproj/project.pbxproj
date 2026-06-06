@@ -29,6 +29,7 @@
 		33CC11132044BFA00003C045 /* MainFlutterWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33CC11122044BFA00003C045 /* MainFlutterWindow.swift */; };
 		2BE513B0E77CE078F6A25934 /* RepoLensMacNavigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 237385C0768E746A01918C25 /* RepoLensMacNavigation.swift */; };
 		1388D147E927DA68CA270BB8 /* RepoLensNativeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90BCC4627BC06FD7E0ADE90A /* RepoLensNativeModels.swift */; };
+		B4F3A1704E0B42D68A200101 /* RepoLensMacTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4F3A16F4E0B42D68A200101 /* RepoLensMacTokens.swift */; };
 		4D451825E2E33115AD1903F6 /* RepoLensMacPages.swift in Sources */ = {isa = PBXBuildFile; fileRef = 357C61876607D225C1B941E3 /* RepoLensMacPages.swift */; };
 		0EBC7E4FADBE9AF77DE53B94 /* RepoLensMacComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB9F91CF37E7D09352F4D948 /* RepoLensMacComponents.swift */; };
 		D156F9913A04CBCFAF139FE7 /* RepoLensMacNativeShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14C7DB949D613B434718E492 /* RepoLensMacNativeShell.swift */; };
@@ -79,6 +80,7 @@
 		33CC11122044BFA00003C045 /* MainFlutterWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainFlutterWindow.swift; sourceTree = "<group>"; };
 		237385C0768E746A01918C25 /* RepoLensMacNavigation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepoLensMacNavigation.swift; sourceTree = "<group>"; };
 		90BCC4627BC06FD7E0ADE90A /* RepoLensNativeModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepoLensNativeModels.swift; sourceTree = "<group>"; };
+		B4F3A16F4E0B42D68A200101 /* RepoLensMacTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepoLensMacTokens.swift; sourceTree = "<group>"; };
 		357C61876607D225C1B941E3 /* RepoLensMacPages.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepoLensMacPages.swift; sourceTree = "<group>"; };
 		FB9F91CF37E7D09352F4D948 /* RepoLensMacComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepoLensMacComponents.swift; sourceTree = "<group>"; };
 		14C7DB949D613B434718E492 /* RepoLensMacNativeShell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepoLensMacNativeShell.swift; sourceTree = "<group>"; };
@@ -182,6 +184,7 @@
 				33CC11122044BFA00003C045 /* MainFlutterWindow.swift */,
 				237385C0768E746A01918C25 /* RepoLensMacNavigation.swift */,
 				90BCC4627BC06FD7E0ADE90A /* RepoLensNativeModels.swift */,
+				B4F3A16F4E0B42D68A200101 /* RepoLensMacTokens.swift */,
 				357C61876607D225C1B941E3 /* RepoLensMacPages.swift */,
 				FB9F91CF37E7D09352F4D948 /* RepoLensMacComponents.swift */,
 				14C7DB949D613B434718E492 /* RepoLensMacNativeShell.swift */,
@@ -375,6 +378,7 @@
 				33CC11132044BFA00003C045 /* MainFlutterWindow.swift in Sources */,
 				2BE513B0E77CE078F6A25934 /* RepoLensMacNavigation.swift in Sources */,
 				1388D147E927DA68CA270BB8 /* RepoLensNativeModels.swift in Sources */,
+				B4F3A1704E0B42D68A200101 /* RepoLensMacTokens.swift in Sources */,
 				4D451825E2E33115AD1903F6 /* RepoLensMacPages.swift in Sources */,
 				0EBC7E4FADBE9AF77DE53B94 /* RepoLensMacComponents.swift in Sources */,
 				D156F9913A04CBCFAF139FE7 /* RepoLensMacNativeShell.swift in Sources */,

@@ -144,7 +144,7 @@ struct RepoLensNativeSettings {
   }
 
   var themeAccentColor: Color {
-    Color(hex: themeColor) ?? .accentColor
+    Color(hex: themeColor) ?? RepoLensNativeTokens.defaultAccent
   }
 }
 
@@ -343,6 +343,8 @@ struct RepoLensNativeStrings {
   var minStars: String { zh ? "最低 Stars" : "Minimum stars" }
   var search: String { zh ? "搜索" : "Search" }
   var emptyProjects: String { zh ? "还没有项目，先运行一次发现。" : "No projects yet. Run discovery first." }
+  var projectSearch: String { zh ? "搜索项目" : "Search projects" }
+  var noProjectSearchResults: String { zh ? "没有匹配的项目。" : "No matching projects." }
   var noProjectSelected: String { zh ? "未选择项目" : "No project selected" }
   var projectDetail: String { zh ? "项目详情" : "Project details" }
   var backToProjects: String { zh ? "返回项目列表" : "Back to projects" }
@@ -401,6 +403,8 @@ struct RepoLensNativeStrings {
   var saveGithubToken: String { zh ? "保存 GitHub Token" : "Save GitHub token" }
   var githubTokenHint: String { zh ? "不填也能搜索，但 GitHub API 额度较低。可到 https://github.com/settings/tokens 创建 Token，保存后只写入安全存储。" : "Discovery works without one, but GitHub API limits are lower. Create one at https://github.com/settings/tokens; RepoLens stores it only in secure storage." }
   var saveProviderKey: String { zh ? "保存 Provider Key" : "Save provider key" }
+  var showSecret: String { zh ? "显示" : "Show" }
+  var hideSecret: String { zh ? "隐藏" : "Hide" }
   var mcpWriteAccess: String { zh ? "允许 MCP 写入外部项目" : "Allow MCP writes" }
 
   func exportLabel(_ format: String) -> String {

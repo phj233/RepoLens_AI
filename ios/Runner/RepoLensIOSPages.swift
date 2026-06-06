@@ -93,9 +93,12 @@ struct RepoLensIOSFilterPanel: View {
 struct RepoLensIOSProjectListPanel: View {
   @ObservedObject var shellState: RepoLensNativeShellState
   var limit: Int?
+  var searchQuery = ""
 
   var body: some View {
     let snapshot = shellState.snapshot
+    let projects = filteredProjects(snapshot.projects, query: searchQuery)
+    let visibleProjects = Array(projects.prefix(limit ?? projects.count))
     RepoLensNativeGlassPanel {
       VStack(alignment: .leading, spacing: 12) {
         Text(snapshot.strings.projects)
@@ -103,8 +106,11 @@ struct RepoLensIOSProjectListPanel: View {
         if snapshot.projects.isEmpty {
           Text(snapshot.strings.emptyProjects)
             .foregroundColor(.secondary)
+        } else if visibleProjects.isEmpty {
+          Text(snapshot.strings.noProjectSearchResults)
+            .foregroundColor(.secondary)
         } else {
-          ForEach(Array(snapshot.projects.prefix(limit ?? snapshot.projects.count))) { project in
+          ForEach(visibleProjects) { project in
             Button {
               shellState.openProjectDetail(project.fullName)
             } label: {
@@ -120,20 +126,41 @@ struct RepoLensIOSProjectListPanel: View {
       }
     }
   }
+
+  private func filteredProjects(
+    _ projects: [RepoLensNativeProject],
+    query: String
+  ) -> [RepoLensNativeProject] {
+    let normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    guard !normalizedQuery.isEmpty else {
+      return projects
+    }
+    return projects.filter { project in
+      let searchable = (
+        project.fullName + " " +
+        project.description + " " +
+        project.language + " " +
+        project.license + " " +
+        project.topics.joined(separator: " ")
+      ).lowercased()
+      return searchable.contains(normalizedQuery)
+    }
+  }
 }
 
 struct RepoLensIOSProjectRow: View {
   let project: RepoLensNativeProject
   let isSelected: Bool
+  @Environment(\.repoLensTokens) private var tokens
 
   var body: some View {
     HStack(alignment: .top, spacing: 10) {
       Image(systemName: project.isFavorite ? "star.fill" : "folder")
-        .foregroundColor(project.isFavorite ? .yellow : .accentColor)
+        .foregroundColor(project.isFavorite ? tokens.warning : tokens.accent)
       VStack(alignment: .leading, spacing: 5) {
         Text(project.fullName)
           .font(.subheadline.weight(.semibold))
-          .foregroundColor(isSelected ? .accentColor : .primary)
+          .foregroundColor(isSelected ? tokens.accent : tokens.textPrimary)
         if !project.description.isEmpty {
           Text(project.description)
             .font(.footnote)
@@ -153,22 +180,30 @@ struct RepoLensIOSProjectRow: View {
 
 struct RepoLensIOSProjectsPage: View {
   @ObservedObject var shellState: RepoLensNativeShellState
+  @State private var projectQuery = ""
 
   var body: some View {
     let snapshot = shellState.snapshot
     if snapshot.projectDetailOpen {
       RepoLensIOSProjectDetailPage(shellState: shellState)
     } else {
-    VStack(alignment: .leading, spacing: 16) {
-      RepoLensPageHeader(
-        title: snapshot.strings.projectLibrary,
-        subtitle: snapshot.strings.projectLibrarySubtitle,
-        action: RepoLensNativeActionButton(title: snapshot.strings.refresh, systemImage: "arrow.clockwise") {
-          shellState.discover()
+      VStack(alignment: .leading, spacing: 16) {
+        RepoLensPageHeader(
+          title: snapshot.strings.projectLibrary,
+          subtitle: snapshot.strings.projectLibrarySubtitle,
+          action: RepoLensNativeActionButton(title: snapshot.strings.refresh, systemImage: "arrow.clockwise") {
+            shellState.discover()
+          }
+        )
+        RepoLensNativeGlassPanel {
+          TextField(snapshot.strings.projectSearch, text: $projectQuery)
+            .textFieldStyle(.roundedBorder)
         }
-      )
-      RepoLensIOSProjectListPanel(shellState: shellState)
-    }
+        RepoLensIOSProjectListPanel(
+          shellState: shellState,
+          searchQuery: projectQuery
+        )
+      }
     }
   }
 }
@@ -274,6 +309,7 @@ struct RepoLensIOSFloatingAnalysisConfig: View {
 
 struct RepoLensIOSAnalysisPage: View {
   @ObservedObject var shellState: RepoLensNativeShellState
+  @Environment(\.repoLensTokens) private var tokens
 
   var body: some View {
     let snapshot = shellState.snapshot
@@ -297,7 +333,7 @@ struct RepoLensIOSAnalysisPage: View {
               Spacer()
               Text(String(format: "%.0f", analysis.score))
                 .font(.title2.weight(.semibold))
-                .foregroundColor(.accentColor)
+                .foregroundColor(tokens.accent)
             }
             Text(analysis.summary)
               .foregroundColor(.secondary)
@@ -653,6 +689,7 @@ struct RepoLensIOSProviderPanel: View {
 
   var body: some View {
     let snapshot = shellState.snapshot
+    let models = providerModels(snapshot.settings)
     RepoLensNativeGlassPanel {
       VStack(alignment: .leading, spacing: 12) {
         Text(snapshot.strings.aiProviders)
@@ -679,10 +716,33 @@ struct RepoLensIOSProviderPanel: View {
           .textFieldStyle(.roundedBorder)
         TextField("Base URL", text: $baseUrl)
           .textFieldStyle(.roundedBorder)
-        SecureField(snapshot.strings.selectedProviderApiKey, text: $providerKey)
-          .textFieldStyle(.roundedBorder)
-        TextField(snapshot.strings.defaultModel, text: $model)
-          .textFieldStyle(.roundedBorder)
+        RepoLensRevealableSecureField(
+          title: snapshot.strings.selectedProviderApiKey,
+          showTitle: snapshot.strings.showSecret,
+          hideTitle: snapshot.strings.hideSecret,
+          text: $providerKey
+        )
+        if snapshot.settings.availableModels.isEmpty {
+          TextField(snapshot.strings.defaultModel, text: $model)
+            .textFieldStyle(.roundedBorder)
+        } else {
+          Picker(snapshot.strings.defaultModel, selection: Binding(
+            get: { model },
+            set: { modelId in
+              guard let selectedModel = models.first(where: { $0.id == modelId }) ?? models.first else {
+                return
+              }
+              model = selectedModel.id
+              contextLength = "\(selectedModel.contextLength)"
+              structuredOutput = selectedModel.supportsStructuredOutput
+              toolCalling = selectedModel.supportsToolCalling
+            }
+          )) {
+            ForEach(models) { model in
+              Text(model.displayName).tag(model.id)
+            }
+          }
+        }
         TextField(snapshot.strings.contextLength, text: $contextLength)
           .keyboardType(.numberPad)
           .textFieldStyle(.roundedBorder)
@@ -714,15 +774,20 @@ struct RepoLensIOSProviderPanel: View {
           payload["availableModels"] = availableModels.map { $0.toMap() }
           shellState.saveProvider(payload)
           if !providerKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            shellState.saveProviderApiKey(providerKey.trimmingCharacters(in: .whitespacesAndNewlines))
-            providerKey = ""
+            shellState.saveProviderApiKey(
+              providerKey.trimmingCharacters(in: .whitespacesAndNewlines),
+              apiKeyRef: payload["apiKeyRef"] as? String ?? payload["id"] as? String
+            )
           }
         }
         HStack {
           RepoLensNativeActionButton(title: snapshot.strings.addProvider, systemImage: "plus") {
             shellState.addProvider(Self.newProviderPayload())
           }
-          RepoLensNativeActionButton(title: snapshot.strings.fetchProviderModels, systemImage: "arrow.down.circle") {
+          RepoLensNativeActionButton(
+            title: snapshot.isFetchingModels ? snapshot.strings.loading : snapshot.strings.fetchProviderModels,
+            systemImage: "arrow.down.circle"
+          ) {
             shellState.refreshSelectedProviderModels()
           }
           if snapshot.settings.providers.count > 1 {
@@ -735,17 +800,50 @@ struct RepoLensIOSProviderPanel: View {
     }
     .onAppear {
       let settings = shellState.snapshot.settings
-      providerName = settings.providerName
-      baseUrl = settings.baseUrl
-      model = settings.defaultModel
-      contextLength = "\(settings.contextLength)"
-      temperature = "\(settings.temperature)"
-      maxTokens = "\(settings.maxOutputTokens)"
-      providerProtocol = settings.providerProtocol
-      structuredOutput = settings.supportsStructuredOutput
-      toolCalling = settings.supportsToolCalling
-      providerKey = ""
+      syncFields(settings)
+      loadProviderApiKey(for: settings.selectedProviderId)
     }
+    .onChange(of: shellState.snapshot.settings.selectedProviderId) { _ in
+      let settings = shellState.snapshot.settings
+      syncFields(settings)
+      loadProviderApiKey(for: settings.selectedProviderId)
+    }
+  }
+
+  private func syncFields(_ settings: RepoLensNativeSettings) {
+    providerName = settings.providerName
+    baseUrl = settings.baseUrl
+    model = settings.defaultModel
+    contextLength = "\(settings.contextLength)"
+    temperature = "\(settings.temperature)"
+    maxTokens = "\(settings.maxOutputTokens)"
+    providerProtocol = settings.providerProtocol
+    structuredOutput = settings.supportsStructuredOutput
+    toolCalling = settings.supportsToolCalling
+  }
+
+  private func loadProviderApiKey(for providerId: String) {
+    providerKey = ""
+    shellState.readSelectedProviderApiKey { apiKey in
+      if shellState.snapshot.settings.selectedProviderId == providerId {
+        providerKey = apiKey
+      }
+    }
+  }
+
+  private func providerModels(_ settings: RepoLensNativeSettings) -> [RepoLensNativeModel] {
+    if settings.availableModels.contains(where: { $0.id == settings.defaultModel }) {
+      return settings.availableModels
+    }
+    return [
+      RepoLensNativeModel(map: [
+        "id": settings.defaultModel,
+        "displayName": settings.defaultModel,
+        "contextLength": settings.contextLength,
+        "supportsStructuredOutput": settings.supportsStructuredOutput,
+        "supportsToolCalling": settings.supportsToolCalling,
+      ]),
+    ] + settings.availableModels
   }
 
   private static func newProviderPayload() -> [String: Any] {
@@ -806,8 +904,12 @@ struct RepoLensIOSCredentialPanel: View {
         Text(strings.githubTokenHint)
           .font(.caption)
           .foregroundColor(.secondary)
-        SecureField("GitHub Token", text: $githubToken)
-          .textFieldStyle(.roundedBorder)
+        RepoLensRevealableSecureField(
+          title: "GitHub Token",
+          showTitle: strings.showSecret,
+          hideTitle: strings.hideSecret,
+          text: $githubToken
+        )
         HStack {
           RepoLensNativeActionButton(title: strings.saveGithubToken, systemImage: "key") {
             shellState.saveGithubToken(githubToken)

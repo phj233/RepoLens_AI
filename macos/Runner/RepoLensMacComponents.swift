@@ -20,6 +20,7 @@ struct RepoLensMacSidebarButton<Icon: View>: View {
   let isSelected: Bool
   let icon: () -> Icon
   let action: () -> Void
+  @Environment(\.repoLensTokens) private var tokens
 
   var body: some View {
     if #available(macOS 26.0, *) {
@@ -39,7 +40,7 @@ struct RepoLensMacSidebarButton<Icon: View>: View {
         label
           .background(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-              .fill(isSelected ? Color.accentColor.opacity(0.14) : Color.clear)
+              .fill(isSelected ? tokens.accentSoft : Color.clear)
           )
       }
       .buttonStyle(.plain)
@@ -54,7 +55,7 @@ struct RepoLensMacSidebarButton<Icon: View>: View {
     }
     .padding(.horizontal, 12)
     .padding(.vertical, 8)
-    .foregroundColor(isSelected ? Color.accentColor : Color.primary)
+    .foregroundColor(isSelected ? tokens.accent : tokens.textPrimary)
     .contentShape(Rectangle())
   }
 }
@@ -63,12 +64,13 @@ struct RepoLensMacToast: View {
   let message: String
   let isError: Bool
   let onClose: () -> Void
+  @Environment(\.repoLensTokens) private var tokens
 
   var body: some View {
     RepoLensNativeGlassPanel {
       HStack(spacing: 10) {
         Image(systemName: isError ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
-          .foregroundColor(isError ? .red : .accentColor)
+          .foregroundColor(isError ? tokens.danger : tokens.success)
         Text(message)
           .font(.footnote)
           .lineLimit(3)
@@ -168,6 +170,46 @@ struct RepoLensNativeGlassPanel<Content: View>: View {
   }
 }
 
+struct RepoLensRevealableSecureField: View {
+  let title: String
+  let showTitle: String
+  let hideTitle: String
+  @Binding var text: String
+  @State private var isRevealed = true
+
+  var body: some View {
+    HStack(spacing: 8) {
+      if isRevealed {
+        TextField(title, text: $text)
+      } else {
+        SecureField(title, text: $text)
+      }
+
+      Button {
+        isRevealed.toggle()
+      } label: {
+        Image(systemName: isRevealed ? "eye.slash" : "eye")
+          .frame(width: 28, height: 28)
+          .contentShape(Circle())
+      }
+      .buttonStyle(.plain)
+      .help(isRevealed ? hideTitle : showTitle)
+      .accessibilityLabel(Text(isRevealed ? hideTitle : showTitle))
+      .background {
+        if #available(macOS 26.0, *) {
+          Circle()
+            .fill(Color.clear)
+            .glassEffect(.regular.interactive(), in: Circle())
+        } else {
+          Circle()
+            .fill(.thinMaterial)
+            .overlay(Circle().stroke(Color.primary.opacity(0.10), lineWidth: 1))
+        }
+      }
+    }
+  }
+}
+
 struct RepoLensNativeActionButton: View {
   let title: String
   let systemImage: String
@@ -229,12 +271,13 @@ struct RepoLensMetricPill: View {
   let title: String
   let value: String
   let systemImage: String
+  @Environment(\.repoLensTokens) private var tokens
 
   var body: some View {
     RepoLensNativeGlassPanel {
       HStack(spacing: 12) {
         Image(systemName: systemImage)
-          .foregroundColor(.accentColor)
+          .foregroundColor(tokens.accent)
         VStack(alignment: .leading, spacing: 2) {
           Text(value)
             .font(.title3.weight(.semibold))
@@ -251,6 +294,7 @@ struct RepoLensMetricPill: View {
 struct RepoLensNativeChip: View {
   let text: String
   var systemImage: String?
+  @Environment(\.repoLensTokens) private var tokens
 
   var body: some View {
     HStack(spacing: 5) {
@@ -262,8 +306,8 @@ struct RepoLensNativeChip: View {
     .font(.caption.weight(.medium))
     .padding(.horizontal, 9)
     .padding(.vertical, 6)
-    .background(Capsule(style: .continuous).fill(Color.accentColor.opacity(0.12)))
-    .foregroundColor(.accentColor)
+    .background(Capsule(style: .continuous).fill(tokens.accentSoft))
+    .foregroundColor(tokens.accent)
   }
 }
 
@@ -291,6 +335,7 @@ struct RepoLensNativeColorPalette: View {
   let onSelect: (String) -> Void
 
   @State private var customValue = ""
+  @Environment(\.repoLensTokens) private var tokens
 
   var body: some View {
     VStack(alignment: .leading, spacing: 10) {
@@ -343,7 +388,7 @@ struct RepoLensNativeColorPalette: View {
       RoundedRectangle(cornerRadius: 10, style: .continuous)
         .fill(color)
       RoundedRectangle(cornerRadius: 10, style: .continuous)
-        .stroke(selected ? Color.accentColor : Color.secondary.opacity(0.36), lineWidth: selected ? 2 : 1)
+        .stroke(selected ? tokens.accent : Color.secondary.opacity(0.36), lineWidth: selected ? 2 : 1)
       if selected {
         Image(systemName: "checkmark")
           .font(.caption.weight(.bold))
@@ -355,7 +400,7 @@ struct RepoLensNativeColorPalette: View {
   }
 
   private var selectedPreview: some View {
-    let color = Color(hex: value) ?? .accentColor
+    let color = Color(hex: value) ?? tokens.accent
     return RoundedRectangle(cornerRadius: 10, style: .continuous)
       .fill(color)
       .overlay(
