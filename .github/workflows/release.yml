@@ -1,0 +1,398 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      version_name:
+        description: "Release version without the v prefix. Empty uses pubspec.yaml."
+        required: false
+        type: string
+      build_number:
+        description: "Build number. Empty uses the GitHub run number."
+        required: false
+        type: string
+      create_release:
+        description: "Create or update the GitHub Release."
+        required: true
+        default: true
+        type: boolean
+      prerelease:
+        description: "Mark the GitHub Release as a prerelease."
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  FLUTTER_VERSION: "3.44.1"
+  JAVA_VERSION: "21"
+  APP_SLUG: "repolens-ai"
+
+jobs:
+  version:
+    name: Resolve version
+    runs-on: ubuntu-latest
+    outputs:
+      version_name: ${{ steps.version.outputs.version_name }}
+      build_number: ${{ steps.version.outputs.build_number }}
+      release_tag: ${{ steps.version.outputs.release_tag }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve release metadata
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          pubspec_version="$(sed -nE 's/^version:[[:space:]]*([0-9A-Za-z.+-]+).*/\1/p' pubspec.yaml | head -n 1)"
+          pubspec_name="${pubspec_version%%+*}"
+          pubspec_build="${pubspec_version##*+}"
+          if [[ "${pubspec_build}" == "${pubspec_version}" ]]; then
+            pubspec_build=""
+          fi
+
+          input_version="${{ github.event.inputs.version_name || '' }}"
+          input_build="${{ github.event.inputs.build_number || '' }}"
+
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            release_tag="${GITHUB_REF_NAME}"
+            version_name="${GITHUB_REF_NAME#v}"
+          else
+            version_name="${input_version:-${pubspec_name}}"
+            release_tag="v${version_name}"
+          fi
+
+          build_number="${input_build:-${pubspec_build:-${GITHUB_RUN_NUMBER}}}"
+          if [[ -z "${build_number}" || ! "${build_number}" =~ ^[0-9]+$ ]]; then
+            build_number="${GITHUB_RUN_NUMBER}"
+          fi
+
+          prerelease="${{ github.event.inputs.prerelease || 'false' }}"
+          if [[ "${version_name}" == *"-"* ]]; then
+            prerelease="true"
+          fi
+
+          echo "version_name=${version_name}" >> "${GITHUB_OUTPUT}"
+          echo "build_number=${build_number}" >> "${GITHUB_OUTPUT}"
+          echo "release_tag=${release_tag}" >> "${GITHUB_OUTPUT}"
+          echo "prerelease=${prerelease}" >> "${GITHUB_OUTPUT}"
+
+  validate:
+    name: Analyze and test
+    runs-on: ubuntu-latest
+    needs: version
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test
+
+  android:
+    name: Android release
+    runs-on: ubuntu-latest
+    needs: [version, validate]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Prepare Android signing
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${ANDROID_KEYSTORE_BASE64}" ]]; then
+            echo "Android signing secrets are not configured. Release builds will use the debug signing config."
+            exit 0
+          fi
+          if [[ -z "${ANDROID_KEYSTORE_PASSWORD}" || -z "${ANDROID_KEY_ALIAS}" || -z "${ANDROID_KEY_PASSWORD}" ]]; then
+            echo "Android signing is partially configured. Please set ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, and ANDROID_KEY_PASSWORD."
+            exit 1
+          fi
+
+          echo "${ANDROID_KEYSTORE_BASE64}" | base64 --decode > android/repolens-release.jks
+          {
+            printf 'storeFile=%s\n' 'repolens-release.jks'
+            printf 'storePassword=%s\n' "${ANDROID_KEYSTORE_PASSWORD}"
+            printf 'keyAlias=%s\n' "${ANDROID_KEY_ALIAS}"
+            printf 'keyPassword=%s\n' "${ANDROID_KEY_PASSWORD}"
+          } > android/key.properties
+
+      - name: Build split APKs
+        run: >
+          flutter build apk
+          --release
+          --split-per-abi
+          --build-name "${{ needs.version.outputs.version_name }}"
+          --build-number "${{ needs.version.outputs.build_number }}"
+
+      - name: Build App Bundle
+        run: >
+          flutter build appbundle
+          --release
+          --build-name "${{ needs.version.outputs.version_name }}"
+          --build-number "${{ needs.version.outputs.build_number }}"
+
+      - name: Collect Android artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist/android
+          for apk in build/app/outputs/flutter-apk/app-*-release.apk; do
+            abi="$(basename "${apk}" | sed -E 's/app-(.*)-release\.apk/\1/')"
+            cp "${apk}" "dist/android/${APP_SLUG}-${{ needs.version.outputs.version_name }}-${abi}.apk"
+          done
+          cp build/app/outputs/bundle/release/app-release.aab \
+            "dist/android/${APP_SLUG}-${{ needs.version.outputs.version_name }}.aab"
+
+      - name: Upload Android artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-release
+          path: dist/android/*
+          if-no-files-found: error
+
+  macos:
+    name: macOS release
+    runs-on: macos-14
+    needs: [version, validate]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build macOS app
+        run: >
+          flutter build macos
+          --release
+          --build-name "${{ needs.version.outputs.version_name }}"
+          --build-number "${{ needs.version.outputs.build_number }}"
+
+      - name: Package macOS app
+        run: |
+          mkdir -p dist/macos
+          ditto -c -k --sequesterRsrc --keepParent \
+            build/macos/Build/Products/Release/repolens_ai.app \
+            "dist/macos/${APP_SLUG}-${{ needs.version.outputs.version_name }}-macos.zip"
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-release
+          path: dist/macos/*
+          if-no-files-found: error
+
+  ios:
+    name: iOS unsigned archive
+    runs-on: macos-14
+    needs: [version, validate]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build unsigned iOS app
+        run: >
+          flutter build ios
+          --release
+          --no-codesign
+          --build-name "${{ needs.version.outputs.version_name }}"
+          --build-number "${{ needs.version.outputs.build_number }}"
+
+      - name: Package unsigned iOS app
+        run: |
+          mkdir -p dist/ios
+          ditto -c -k --sequesterRsrc --keepParent \
+            build/ios/iphoneos/Runner.app \
+            "dist/ios/${APP_SLUG}-${{ needs.version.outputs.version_name }}-ios-unsigned.zip"
+
+      - name: Upload unsigned iOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-unsigned
+          path: dist/ios/*
+          if-no-files-found: error
+
+  linux:
+    name: Linux release
+    runs-on: ubuntu-latest
+    needs: [version, validate]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            clang \
+            cmake \
+            libgtk-3-dev \
+            liblzma-dev \
+            ninja-build \
+            pkg-config
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build Linux app
+        run: >
+          flutter build linux
+          --release
+          --build-name "${{ needs.version.outputs.version_name }}"
+          --build-number "${{ needs.version.outputs.build_number }}"
+
+      - name: Package Linux app
+        run: |
+          mkdir -p dist/linux
+          tar -C build/linux/x64/release/bundle -czf \
+            "dist/linux/${APP_SLUG}-${{ needs.version.outputs.version_name }}-linux-x64.tar.gz" .
+
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-release
+          path: dist/linux/*
+          if-no-files-found: error
+
+  windows:
+    name: Windows release
+    runs-on: windows-latest
+    needs: [version, validate]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build Windows app
+        run: >
+          flutter build windows
+          --release
+          --build-name "${{ needs.version.outputs.version_name }}"
+          --build-number "${{ needs.version.outputs.build_number }}"
+
+      - name: Package Windows app
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist/windows | Out-Null
+          Compress-Archive `
+            -Path build/windows/x64/runner/Release/* `
+            -DestinationPath "dist/windows/${env:APP_SLUG}-${{ needs.version.outputs.version_name }}-windows-x64.zip" `
+            -Force
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-release
+          path: dist/windows/*
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub Release
+    runs-on: ubuntu-latest
+    needs: [version, android, macos, ios, linux, windows]
+    if: github.event_name == 'push' || github.event.inputs.create_release == 'true'
+    steps:
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+          merge-multiple: true
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.version.outputs.release_tag }}
+          target_commitish: ${{ github.sha }}
+          name: RepoLens AI ${{ needs.version.outputs.version_name }}
+          prerelease: ${{ needs.version.outputs.prerelease }}
+          generate_release_notes: true
+          files: release-artifacts/*
+          body: |
+            RepoLens AI ${{ needs.version.outputs.version_name }}
+
+            构建号：${{ needs.version.outputs.build_number }}
+
+            产物说明：
+            - Android：APK 按 ABI 拆分，同时提供 AAB。
+            - macOS / Linux / Windows：提供桌面端压缩包。
+            - iOS：提供 unsigned app archive，用于后续签名或 TestFlight 流程。
